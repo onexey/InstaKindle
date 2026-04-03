@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -142,7 +142,7 @@ def load_config(cli_overrides: dict[str, Any] | None = None) -> Config:
                 kwargs[key] = value
 
     # Type coercion for int fields
-    int_fields = {f.name for f in fields(Config) if f.type == "int" and not f.name.startswith("_")}
+    int_fields = {"smtp_port", "poll_interval"}
     for field_name in int_fields:
         if field_name in kwargs and isinstance(kwargs[field_name], str):
             try:
