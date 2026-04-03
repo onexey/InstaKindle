@@ -5,12 +5,16 @@ from __future__ import annotations
 import logging
 import shutil
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from instakindle.config import Config
 from instakindle.converter.base import Converter, get_converter
 from instakindle.instapaper import Article, InstapaperClient, InstapaperError
 from instakindle.sender import KindleSender, SenderError
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from instakindle.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -103,9 +107,7 @@ class Pipeline:
             # Step 2: Convert to EPUB
             result = self._converter.convert(article, html)
             if not result.success:
-                logger.error(
-                    "Conversion failed for '%s': %s", article.title, result.error
-                )
+                logger.error("Conversion failed for '%s': %s", article.title, result.error)
                 return False
 
             try:

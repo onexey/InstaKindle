@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from instakindle.config import Config
 from instakindle.converter.base import ConversionResult
 from instakindle.instapaper import Article, InstapaperError
-from instakindle.pipeline import Pipeline, SENT_TAG
+from instakindle.pipeline import SENT_TAG, Pipeline
 from instakindle.sender import SenderError
+
+if TYPE_CHECKING:
+    from instakindle.config import Config
 
 
 class TestPipeline:
@@ -122,7 +123,6 @@ class TestPipeline:
         mock_client.get_article_html.return_value = ""
 
         mock_converter = mock_get_converter.return_value
-        mock_sender = mock_sender_cls.return_value
 
         pipeline = Pipeline(sample_config)
         count = pipeline.run_once()
@@ -191,8 +191,6 @@ class TestPipeline:
             success=True,
         )
 
-        mock_sender = mock_sender_cls.return_value
-
         pipeline = Pipeline(sample_config)
         count = pipeline.run_once()
 
@@ -202,7 +200,7 @@ class TestPipeline:
 class TestPipelineCleanup:
     """Tests for pipeline cleanup behavior."""
 
-    def test_cleanup_removes_temp_dir(self, tmp_path: Path) -> None:
+    def test_cleanup_removes_temp_dir(self) -> None:
         """Should remove temp directories under /tmp."""
         import tempfile
 
@@ -212,11 +210,20 @@ class TestPipelineCleanup:
         Pipeline._cleanup(temp_dir)
         assert not temp_dir.exists()
 
-    def test_cleanup_ignores_non_tmp_dir(self, tmp_path: Path) -> None:
+    def test_cleanup_ignores_non_tmp_dir(self) -> None:
         """Should not remove directories outside /tmp."""
-        test_dir = tmp_path / "keep_this"
-        test_dir.mkdir()
-        (test_dir / "file.txt").write_text("keep")
 
-        Pipeline._cleanup(test_dir)
-        assert test_dir.exists()
+        # Create a temp directory under the user's home, not under /tmp
+        home = Path.home()
+        test_dir = home / ".instakindle_test_cleanup"
+        test_dir.mkdir(exist_ok=True)
+        test_file = test_dir / "file.txt"
+        test_file.write_text("keep")
+
+        try:
+            Pipeline._cleanup(test_dir)
+            assert test_dir.exists()
+        finally:
+            import shutil
+
+            shutil.rmtree(test_dir, ignore_errors=True)

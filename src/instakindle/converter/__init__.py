@@ -6,10 +6,10 @@ from instakindle.converter.ebooklib_converter import EbooklibConverter
 from instakindle.converter.pandoc import PandocConverter
 
 __all__ = [
+    "CalibreConverter",
     "ConversionResult",
     "Converter",
     "ConverterType",
-    "CalibreConverter",
     "EbooklibConverter",
     "PandocConverter",
 ]

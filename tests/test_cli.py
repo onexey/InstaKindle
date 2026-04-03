@@ -13,27 +13,40 @@ class TestBuildParser:
     def test_parser_has_version(self) -> None:
         parser = build_parser()
         # Version action should be registered
-        assert any(
-            "--version" in action.option_strings for action in parser._actions
-        )
+        assert any("--version" in action.option_strings for action in parser._actions)
 
     def test_parser_accepts_all_args(self) -> None:
         parser = build_parser()
-        args = parser.parse_args([
-            "--instapaper-key", "key",
-            "--instapaper-secret", "secret",
-            "--instapaper-username", "user",
-            "--instapaper-password", "pass",
-            "--kindle-email", "k@kindle.com",
-            "--smtp-host", "smtp.test.com",
-            "--smtp-port", "465",
-            "--smtp-username", "smtp_u",
-            "--smtp-password", "smtp_p",
-            "--sender-email", "from@test.com",
-            "--poll-interval", "300",
-            "--log-level", "debug",
-            "--converter", "pandoc",
-        ])
+        args = parser.parse_args(
+            [
+                "--instapaper-key",
+                "key",
+                "--instapaper-secret",
+                "secret",
+                "--instapaper-username",
+                "user",
+                "--instapaper-password",
+                "pass",
+                "--kindle-email",
+                "k@kindle.com",
+                "--smtp-host",
+                "smtp.test.com",
+                "--smtp-port",
+                "465",
+                "--smtp-username",
+                "smtp_u",
+                "--smtp-password",
+                "smtp_p",
+                "--sender-email",
+                "from@test.com",
+                "--poll-interval",
+                "300",
+                "--log-level",
+                "debug",
+                "--converter",
+                "pandoc",
+            ]
+        )
         assert args.instapaper_key == "key"
         assert args.smtp_port == 465
         assert args.converter == "pandoc"

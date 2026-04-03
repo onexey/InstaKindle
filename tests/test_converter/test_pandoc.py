@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from instakindle.converter.pandoc import PandocConverter, _sanitize_filename, _wrap_html
 from instakindle.instapaper import Article
 

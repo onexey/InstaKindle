@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import requests
@@ -47,9 +47,7 @@ class TestArticle:
 class TestInstapaperClient:
     """Tests for the InstapaperClient."""
 
-    def _make_client(
-        self, session: requests.Session | None = None
-    ) -> InstapaperClient:
+    def _make_client(self, session: requests.Session | None = None) -> InstapaperClient:
         return InstapaperClient(
             consumer_key="test_key",
             consumer_secret="test_secret",

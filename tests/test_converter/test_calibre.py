@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from instakindle.converter.calibre import CalibreConverter, _sanitize_filename, _wrap_html
 from instakindle.instapaper import Article
 
@@ -92,9 +90,7 @@ class TestCalibreConverter:
         """Should include --authors flag when author is set."""
         mock_run.return_value = MagicMock(returncode=0, stderr="", stdout="")
 
-        article = Article(
-            bookmark_id=1, title="Test", url="https://example.com", author="John Doe"
-        )
+        article = Article(bookmark_id=1, title="Test", url="https://example.com", author="John Doe")
         converter = CalibreConverter()
         converter.convert(article, "<p>content</p>")
 

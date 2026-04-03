@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import logging
 import uuid
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 from ebooklib import epub
 
 from instakindle.converter.base import ConversionResult, Converter
-from instakindle.instapaper import Article
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from instakindle.instapaper import Article
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +124,7 @@ class EbooklibConverter(Converter):
             epub_images: list[epub.EpubImage] = []
             soup = BeautifulSoup(updated_html, "html.parser")
 
-            for original_url, local_path in image_map.items():
+            for _original_url, local_path in image_map.items():
                 image_filename = f"images/{local_path.name}"
                 media_type = _guess_media_type(local_path)
 

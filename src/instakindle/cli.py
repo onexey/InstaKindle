@@ -75,9 +75,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Convert argparse namespace to dict, mapping CLI flag names to config field names
     cli_overrides = {
-        key.replace("-", "_"): value
-        for key, value in vars(args).items()
-        if value is not None
+        key.replace("-", "_"): value for key, value in vars(args).items() if value is not None
     }
 
     # Load configuration

@@ -95,7 +95,11 @@ class InstapaperClient:
             raise InstapaperError(f"Authentication failed: {e}") from e
 
         # Parse the response (URL-encoded: oauth_token=xxx&oauth_token_secret=yyy)
-        tokens = dict(pair.split("=") for pair in response.text.split("&"))
+        tokens: dict[str, str] = {}
+        for pair in response.text.split("&"):
+            if "=" in pair:
+                key, _, value = pair.partition("=")
+                tokens[key] = value
         self._oauth_token = tokens.get("oauth_token", "")
         self._oauth_token_secret = tokens.get("oauth_token_secret", "")
 
@@ -189,9 +193,7 @@ class InstapaperClient:
             response.raise_for_status()
             return response.text
         except requests.RequestException as e:
-            raise InstapaperError(
-                f"Failed to fetch HTML for bookmark {bookmark_id}: {e}"
-            ) from e
+            raise InstapaperError(f"Failed to fetch HTML for bookmark {bookmark_id}: {e}") from e
 
     def tag_bookmark(self, bookmark_id: int, tag: str) -> None:
         """Add a tag to a bookmark.

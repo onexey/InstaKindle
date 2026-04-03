@@ -73,10 +73,11 @@ select = [
 ignore = [
     "S603",  # subprocess call - we need this for Calibre/Pandoc
     "S607",  # partial executable path
+    "S108",  # temp file usage - we intentionally use /tmp for conversion artifacts
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S106"]
+"tests/**/*.py" = ["S101", "S105", "S106", "S108"]
 
 [tool.mypy]
 python_version = "3.11"

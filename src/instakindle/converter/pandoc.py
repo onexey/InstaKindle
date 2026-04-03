@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from instakindle.converter.base import ConversionResult, Converter
-from instakindle.instapaper import Article
+
+if TYPE_CHECKING:
+    from instakindle.instapaper import Article
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,7 @@ class PandocConverter(Converter):
             cmd.extend(["--resource-path", str(work_dir)])
 
             logger.info("Running Pandoc conversion for '%s'...", article.title)
-            result = subprocess.run(  # noqa: S603
+            result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
@@ -133,7 +135,10 @@ def _wrap_html(body_html: str, title: str) -> str:
         pre, code {{ font-family: monospace; font-size: 0.9em; }}
         pre {{ background: #f4f4f4; padding: 1em; overflow-x: auto; white-space: pre-wrap; }}
         img {{ max-width: 100%; height: auto; }}
-        blockquote {{ border-left: 3px solid #ccc; padding-left: 1em; margin-left: 0; color: #555; }}
+        blockquote {{
+            border-left: 3px solid #ccc; padding-left: 1em;
+            margin-left: 0; color: #555;
+        }}
     </style>
 </head>
 <body>

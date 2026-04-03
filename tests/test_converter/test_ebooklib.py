@@ -17,9 +17,7 @@ class TestEbooklibConverter:
         """EbooklibConverter should always be available."""
         assert EbooklibConverter.is_available()
 
-    def test_convert_simple_html(
-        self, sample_article: Article, sample_html_no_images: str
-    ) -> None:
+    def test_convert_simple_html(self, sample_article: Article, sample_html_no_images: str) -> None:
         """Should convert simple HTML to a valid EPUB file."""
         converter = EbooklibConverter()
         result = converter.convert(sample_article, sample_html_no_images)
@@ -33,9 +31,7 @@ class TestEbooklibConverter:
         assert zipfile.is_zipfile(result.epub_path)
 
     @patch("instakindle.converter.base.requests.get")
-    def test_convert_with_images(
-        self, mock_get: MagicMock, sample_article: Article
-    ) -> None:
+    def test_convert_with_images(self, mock_get: MagicMock, sample_article: Article) -> None:
         """Should handle HTML with images."""
         mock_response = MagicMock()
         mock_response.content = b"fake_png_data"
@@ -62,7 +58,7 @@ class TestEbooklibConverter:
 
     def test_convert_preserves_code_blocks(self, sample_article: Article) -> None:
         """Should preserve code blocks in the output."""
-        html = '<pre><code>def main():\n    pass</code></pre>'
+        html = "<pre><code>def main():\n    pass</code></pre>"
         converter = EbooklibConverter()
         result = converter.convert(sample_article, html)
 
