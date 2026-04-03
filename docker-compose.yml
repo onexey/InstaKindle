@@ -1,0 +1,22 @@
+services:
+  instakindle:
+    image: instakindle
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: instakindle
+    restart: unless-stopped
+    environment:
+      INSTAPAPER_KEY: ${INSTAPAPER_KEY}
+      INSTAPAPER_SECRET: ${INSTAPAPER_SECRET}
+      INSTAPAPER_USERNAME: ${INSTAPAPER_USERNAME}
+      INSTAPAPER_PASSWORD: ${INSTAPAPER_PASSWORD}
+      KINDLE_EMAIL: ${KINDLE_EMAIL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SENDER_EMAIL: ${SENDER_EMAIL}
+      POLL_INTERVAL: ${POLL_INTERVAL:-900}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CONVERTER: ${CONVERTER:-ebooklib}
