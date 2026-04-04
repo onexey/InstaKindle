@@ -65,7 +65,6 @@ def retry(
                         wait,
                     )
                     time.sleep(wait)
-            return None  # pragma: no cover - unreachable
 
         return wrapper  # type: ignore[return-value]
 
