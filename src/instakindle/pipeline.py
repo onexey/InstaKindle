@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import tempfile
 import time
@@ -220,10 +221,13 @@ def _write_healthcheck(poll_interval: int) -> None:
     try:
         fd, tmp_path = tempfile.mkstemp(dir=HEALTHCHECK_FILE.parent, prefix=".hc_tmp_")
         try:
-            with open(fd, "w") as f:
+            with os.fdopen(fd, "w") as f:
                 f.write(f"{time.time()} {poll_interval}")
             Path(tmp_path).rename(HEALTHCHECK_FILE)
         except BaseException:
+            # fd is already closed by os.fdopen context manager (or was
+            # never wrapped if os.fdopen itself failed — but os.fdopen
+            # closes the fd on failure too).  Only clean up the temp file.
             Path(tmp_path).unlink(missing_ok=True)
             raise
     except OSError as exc:
