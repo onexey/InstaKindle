@@ -167,7 +167,10 @@ class TestInstapaperClient:
         client.authenticate()
 
         error_response = MagicMock()
-        error_response.json.return_value = {"error": 1241, "message": "Invalid or missing bookmark_id"}
+        error_response.json.return_value = {
+            "error": 1241,
+            "message": "Invalid or missing bookmark_id",
+        }
         error_response.raise_for_status = MagicMock()
         mock_session.request.return_value = error_response
 
