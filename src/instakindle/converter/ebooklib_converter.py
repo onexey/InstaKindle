@@ -182,14 +182,11 @@ class EbooklibConverter(Converter):
 
 def _sanitize_filename(name: str) -> str:
     """Sanitize a string for use as a filename."""
-    for char in r'<>:"/\|?*':
-        name = name.replace(char, "_")
-    # Replace curly/smart quotes and apostrophes that can break MIME headers
-    # and cause issues with email-based delivery services like Send-to-Kindle
-    for char in "\u2018\u2019\u201a\u201b'":
-        name = name.replace(char, "_")
-    for char in "\u201c\u201d\u201e\u201f":
-        name = name.replace(char, "_")
+    # Characters unsafe for filenames or MIME Content-Disposition headers.
+    # Includes standard filesystem-unsafe chars, ASCII apostrophe, and
+    # Unicode curly/smart quotes (U+2018..U+201F) that break email delivery.
+    _unsafe = "<>:\"/\\|?*'\u2018\u2019\u201a\u201b\u201c\u201d\u201e\u201f"
+    name = name.translate(dict.fromkeys(map(ord, _unsafe), "_"))
     return name[:200].strip().rstrip(".")
 
 

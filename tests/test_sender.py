@@ -88,10 +88,14 @@ class TestKindleSender:
             shutil.rmtree(work_dir, ignore_errors=True)
 
     def test_build_message_quotes_filename(self) -> None:
-        """Content-Disposition filename should be properly quoted/encoded."""
+        """Content-Disposition filename should be properly quoted/encoded.
+
+        Regression test: titles with apostrophes produced malformed
+        Content-Disposition headers that caused silent delivery failures.
+        """
         work_dir = Path(tempfile.mkdtemp(prefix="instakindle_test_"))
         try:
-            epub_file = work_dir / "Why I_m Not Worried.epub"
+            epub_file = work_dir / "Why I'm Not Worried.epub"
             epub_file.write_bytes(b"fake epub data")
 
             sender = self._make_sender()
@@ -102,6 +106,6 @@ class TestKindleSender:
             # The filename must be properly quoted (not bare/unquoted)
             assert "filename" in content_disp
             # Python's add_header with keyword args quotes filenames with spaces
-            assert "Why I_m Not Worried.epub" in content_disp
+            assert "Why I'm Not Worried.epub" in content_disp
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
