@@ -79,6 +79,7 @@ InstaKindle/
 │       ├── config.py              # Configuration from env vars / CLI args
 │       ├── instapaper.py          # Instapaper API client (OAuth 1.0a)
 │       ├── pipeline.py            # Main pipeline orchestrator
+│       ├── retry.py               # Retry decorator with exponential backoff
 │       ├── sender.py              # SMTP email sender
 │       └── converter/
 │           ├── __init__.py        # Converter exports
@@ -90,6 +91,7 @@ InstaKindle/
 │   ├── test_instapaper.py
 │   ├── test_cli.py
 │   ├── test_pipeline.py
+│   ├── test_retry.py
 │   ├── test_sender.py
 │   └── test_converter/
 │       ├── test_base.py
@@ -128,6 +130,38 @@ CLI (cli.py)
 - **Frozen dataclass for config**: Configuration is immutable once loaded, preventing accidental mutation.
 - **Graceful degradation**: Tagging failures are logged as warnings (not all Instapaper plans support tags). Individual article failures don't stop the pipeline.
 - **Temp directory cleanup**: Conversion artifacts are cleaned up after each article is processed.
+- **Retry on transient failures**: All network-bound operations use retry with exponential backoff (see below).
+
+### Network Resilience
+
+The pipeline runs continuously inside Docker, so every network call must be
+resilient to transient failures (DNS blips, timeouts, HTTP 5xx, SMTP rate
+limits). Two complementary mechanisms are in place:
+
+| Mechanism | Where used | How it works |
+|---|---|---|
+| `urllib3.util.Retry` + `HTTPAdapter` | `InstapaperClient` session | Transport-level retry for all HTTP requests (status 429/500/502/503/504) |
+| `@retry` decorator (`instakindle.retry`) | Image downloads, SMTP sending | Application-level retry with exponential backoff |
+
+**When adding new network operations**, always apply one of these patterns:
+
+- For `requests.Session` based calls — mount a `Retry` adapter on the session
+  (see `InstapaperClient._build_session()`).
+- For standalone `requests.get/post` or non-HTTP I/O — decorate the function
+  with `@retry(...)` (see `converter/base.py:_download_image()` and
+  `sender.py:KindleSender.send_epub()`).
+
+Example using the decorator:
+
+```python
+from instakindle.retry import retry
+
+@retry(max_attempts=3, backoff_factor=2.0, exceptions=(requests.RequestException,))
+def call_external_api(url: str) -> dict:
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return response.json()
+```
 
 ## Running Locally (without Docker)
 

@@ -11,7 +11,9 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
 from requests_oauthlib import OAuth1
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +63,25 @@ class InstapaperClient:
         self._consumer_secret = consumer_secret
         self._username = username
         self._password = password
-        self._session = session or requests.Session()
+        self._session = session or self._build_session()
         self._oauth_token: str = ""
         self._oauth_token_secret: str = ""
         self._folder_cache: dict[str, str] = {}  # name -> folder_id
+
+    @staticmethod
+    def _build_session() -> requests.Session:
+        """Create a requests session with automatic retry on transient errors."""
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET", "POST"],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        return session
 
     @property
     def is_authenticated(self) -> bool:

@@ -11,6 +11,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING
 
+from instakindle.retry import retry
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -40,6 +42,7 @@ class KindleSender:
         self._sender_email = sender_email
         self._kindle_email = kindle_email
 
+    @retry(max_attempts=3, backoff_factor=2.0, exceptions=(SenderError,))
     def send_epub(self, epub_path: Path, title: str) -> None:
         """Send an EPUB file to the Kindle email address.
 
