@@ -15,6 +15,7 @@ from instakindle.pipeline import (
     MAX_CONSECUTIVE_FAILURES,
     SENT_FOLDER,
     Pipeline,
+    PipelineIterationError,
     _write_healthcheck,
 )
 from instakindle.sender import SenderError
@@ -93,7 +94,7 @@ class TestPipeline:
         sample_config: Config,
         sample_article: Article,
     ) -> None:
-        """run_once should skip articles that fail conversion."""
+        """run_once should raise when all articles fail conversion."""
         mock_client = mock_client_cls.return_value
         mock_client.get_bookmarks.return_value = [sample_article]
         mock_client.get_article_html.return_value = "<p>Content</p>"
@@ -109,9 +110,10 @@ class TestPipeline:
         mock_sender = mock_sender_cls.return_value
 
         pipeline = Pipeline(sample_config)
-        count = pipeline.run_once()
 
-        assert count == 0
+        with pytest.raises(PipelineIterationError):
+            pipeline.run_once()
+
         mock_sender.send_epub.assert_not_called()
         mock_client.move_bookmark.assert_not_called()
 
@@ -126,7 +128,7 @@ class TestPipeline:
         sample_config: Config,
         sample_article: Article,
     ) -> None:
-        """run_once should skip articles with empty HTML."""
+        """run_once should raise when all articles have empty HTML."""
         mock_client = mock_client_cls.return_value
         mock_client.get_bookmarks.return_value = [sample_article]
         mock_client.get_article_html.return_value = ""
@@ -134,9 +136,10 @@ class TestPipeline:
         mock_converter = mock_converter_cls.return_value
 
         pipeline = Pipeline(sample_config)
-        count = pipeline.run_once()
 
-        assert count == 0
+        with pytest.raises(PipelineIterationError):
+            pipeline.run_once()
+
         mock_converter.convert.assert_not_called()
 
     @patch("instakindle.pipeline.KindleSender")
@@ -166,9 +169,10 @@ class TestPipeline:
         mock_sender.send_epub.side_effect = SenderError("SMTP failed")
 
         pipeline = Pipeline(sample_config)
-        count = pipeline.run_once()
 
-        assert count == 0
+        with pytest.raises(PipelineIterationError):
+            pipeline.run_once()
+
         mock_client.move_bookmark.assert_not_called()
 
     @patch("instakindle.pipeline.KindleSender")
@@ -297,7 +301,9 @@ class TestRunForever:
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(SystemExit) as exc_info:
+        with patch("instakindle.pipeline._write_healthcheck"), pytest.raises(
+            SystemExit
+        ) as exc_info:
             pipeline.run_forever()
 
         # Should have hit our escape hatch, not the MAX_CONSECUTIVE_FAILURES exit
@@ -387,12 +393,12 @@ class TestRunForever:
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(SystemExit):
+        with patch("instakindle.pipeline._write_healthcheck"), pytest.raises(SystemExit):
             pipeline.run_forever()
 
         poll = sample_config.poll_interval
         sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
-        # consecutive_failures is 0, so backoff = poll * 2^0 = poll
+        # consecutive_failures is 0, so sleep = poll_interval directly
         for s in sleep_calls:
             assert s == poll
 
@@ -411,6 +417,40 @@ class TestRunForever:
         """Non-InstapaperError exceptions should also count as failures."""
         mock_client = mock_client_cls.return_value
         mock_client.get_bookmarks.side_effect = RuntimeError("unexpected")
+
+        pipeline = Pipeline(sample_config)
+
+        with pytest.raises(SystemExit) as exc_info:
+            pipeline.run_forever()
+
+        assert exc_info.value.code == 1
+        assert mock_client.get_bookmarks.call_count == MAX_CONSECUTIVE_FAILURES
+
+    @patch("instakindle.pipeline.time.sleep")
+    @patch("instakindle.pipeline.KindleSender")
+    @patch("instakindle.pipeline.EbooklibConverter")
+    @patch("instakindle.pipeline.InstapaperClient")
+    def test_all_articles_failing_increments_counter(
+        self,
+        mock_client_cls: MagicMock,
+        mock_converter_cls: MagicMock,
+        mock_sender_cls: MagicMock,
+        mock_sleep: MagicMock,
+        sample_config: Config,
+        sample_article: Article,
+    ) -> None:
+        """When all articles fail processing, run_forever should count as failure."""
+        mock_client = mock_client_cls.return_value
+        mock_client.get_bookmarks.return_value = [sample_article]
+        mock_client.get_article_html.return_value = "<p>Content</p>"
+
+        mock_converter = mock_converter_cls.return_value
+        mock_converter.convert.return_value = ConversionResult(
+            epub_path=Path("/tmp/test.epub"),
+            title=sample_article.title,
+            success=False,
+            error="Conversion error",
+        )
 
         pipeline = Pipeline(sample_config)
 

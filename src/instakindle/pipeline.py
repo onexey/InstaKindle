@@ -25,6 +25,10 @@ _MAX_BACKOFF_EXPONENT = 4
 HEALTHCHECK_FILE = Path("/tmp/instakindle_last_success")
 
 
+class PipelineIterationError(Exception):
+    """All articles in a pipeline iteration failed to process."""
+
+
 class Pipeline:
     """Orchestrates the InstaKindle pipeline.
 
@@ -71,6 +75,13 @@ class Pipeline:
                 self.run_once()
                 consecutive_failures = 0
                 _write_healthcheck()
+            except PipelineIterationError:
+                consecutive_failures += 1
+                logger.warning(
+                    "Pipeline iteration failed — all articles failed (%d/%d)",
+                    consecutive_failures,
+                    MAX_CONSECUTIVE_FAILURES,
+                )
             except InstapaperError:
                 consecutive_failures += 1
                 logger.exception(
@@ -93,10 +104,13 @@ class Pipeline:
                 )
                 raise SystemExit(1)
 
-            backoff = self._config.poll_interval * (
-                2 ** min(consecutive_failures, _MAX_BACKOFF_EXPONENT)
-            )
-            sleep_seconds = min(backoff, _MAX_BACKOFF_SECONDS)
+            if consecutive_failures > 0:
+                backoff = self._config.poll_interval * (
+                    2 ** min(consecutive_failures, _MAX_BACKOFF_EXPONENT)
+                )
+                sleep_seconds = min(backoff, _MAX_BACKOFF_SECONDS)
+            else:
+                sleep_seconds = self._config.poll_interval
             logger.info("Sleeping for %d seconds...", sleep_seconds)
             time.sleep(sleep_seconds)
 
@@ -120,6 +134,11 @@ class Pipeline:
                 success_count += 1
 
         logger.info("Processed %d/%d articles successfully", success_count, len(articles))
+
+        if success_count == 0:
+            msg = f"All {len(articles)} articles failed to process"
+            raise PipelineIterationError(msg)
+
         return success_count
 
     def _process_article(self, article: Article) -> bool:

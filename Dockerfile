@@ -44,11 +44,14 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN useradd --create-home --shell /bin/bash appuser
 USER appuser
 
-# Healthcheck — verify the pipeline ran successfully within the last 30 minutes
+# Healthcheck — verify the pipeline ran successfully recently.
+# Threshold adapts to POLL_INTERVAL: max(POLL_INTERVAL * 3, 1800) seconds.
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
     CMD python -c "\
-import sys, time, pathlib; \
+import sys, time, pathlib, os; \
 p = pathlib.Path('/tmp/instakindle_last_success'); \
-sys.exit(0 if p.exists() and time.time() - float(p.read_text()) < 1800 else 1)" || exit 1
+interval = int(os.environ.get('POLL_INTERVAL', '900')); \
+threshold = max(interval * 3, 1800); \
+sys.exit(0 if p.exists() and time.time() - float(p.read_text()) < threshold else 1)" || exit 1
 
 ENTRYPOINT ["python", "-m", "instakindle"]
