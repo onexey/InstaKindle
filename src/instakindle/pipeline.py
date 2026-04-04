@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import html
 import logging
 import shutil
 import tempfile
@@ -100,15 +99,14 @@ class Pipeline:
 
         try:
             # Step 1: Fetch HTML
-            html = self._client.get_article_html(article.bookmark_id)
-            logger.debug("Fetched HTML snippet: %s", html)
-            
-            if not html:
+            article_html = self._client.get_article_html(article.bookmark_id)
+
+            if not article_html:
                 logger.warning("Empty HTML for article '%s', skipping", article.title)
                 return False
 
             # Step 2: Convert to EPUB
-            result = self._converter.convert(article, html)
+            result = self._converter.convert(article, article_html)
             if not result.success:
                 logger.error("Conversion failed for '%s': %s", article.title, result.error)
                 return False
