@@ -1,3 +1,9 @@
+[![CI](https://github.com/onexey/InstaKindle/actions/workflows/ci.yml/badge.svg)](https://github.com/onexey/InstaKindle/actions/workflows/ci.yml)
+[![Publish Docker Image](https://github.com/onexey/InstaKindle/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/onexey/InstaKindle/actions/workflows/docker-publish.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+<a href="https://www.buymeacoffee.com/onexey" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="30"></a>
+
 # InstaKindle
 
 Automatically fetch your Instapaper articles, convert them to well-formatted ebooks, and deliver them straight to your Kindle — running continuously in a lightweight Docker container.
