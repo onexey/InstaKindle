@@ -5,9 +5,14 @@ FROM python:3.14-slim AS builder
 
 WORKDIR /build
 
-# Install system dependencies for building Python packages
+# Install system dependencies for building Python packages (lxml requires
+# C standard-library headers and the libxml2/libxslt development files).
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc libxml2-dev libxslt-dev && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        libxml2-dev \
+        libxslt-dev \
+        zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy only dependency specification files first for better layer caching
@@ -35,6 +40,13 @@ LABEL maintainer="InstaKindle Contributors"
 LABEL description="Fetch Instapaper articles, convert to ebooks, deliver to Kindle"
 
 WORKDIR /app
+
+# Install runtime shared libraries needed by lxml (compiled from source against
+# system libxml2/libxslt in the builder stage, so the shared objects must exist
+# at runtime).
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libxml2 libxslt1.1 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
