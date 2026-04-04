@@ -8,7 +8,7 @@ import sys
 
 from instakindle import __version__
 from instakindle.config import load_config
-from instakindle.pipeline import Pipeline
+from instakindle.pipeline import Pipeline, PipelineShutdownError
 
 logger = logging.getLogger("instakindle")
 
@@ -96,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
         pipeline.run_forever()
     except KeyboardInterrupt:
         logger.info("Shutting down...")
+    except PipelineShutdownError:
+        logger.critical("Pipeline shut down due to repeated failures")
+        return 1
     except Exception:
         logger.exception("Fatal error")
         return 1

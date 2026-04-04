@@ -29,6 +29,10 @@ class PipelineIterationError(Exception):
     """All articles in a pipeline iteration failed to process."""
 
 
+class PipelineShutdownError(Exception):
+    """Circuit breaker tripped after too many consecutive failures."""
+
+
 class Pipeline:
     """Orchestrates the InstaKindle pipeline.
 
@@ -102,7 +106,7 @@ class Pipeline:
                     "Exceeded %d consecutive failures, shutting down",
                     MAX_CONSECUTIVE_FAILURES,
                 )
-                raise SystemExit(1)
+                raise PipelineShutdownError(consecutive_failures)
 
             if consecutive_failures > 0:
                 backoff = self._config.poll_interval * (
@@ -208,8 +212,18 @@ def _write_healthcheck(poll_interval: int) -> None:
     The file contains ``<timestamp> <poll_interval>`` so the Docker
     healthcheck can derive a staleness threshold from the effective
     poll interval, even when it differs from the ``POLL_INTERVAL`` env var.
+
+    Uses atomic write (temp file + rename) so that concurrent readers
+    (e.g. Docker healthcheck) never see a partially written file.
     """
     try:
-        HEALTHCHECK_FILE.write_text(f"{time.time()} {poll_interval}")
+        fd, tmp_path = tempfile.mkstemp(dir=HEALTHCHECK_FILE.parent, prefix=".hc_tmp_")
+        try:
+            with open(fd, "w") as f:
+                f.write(f"{time.time()} {poll_interval}")
+            Path(tmp_path).rename(HEALTHCHECK_FILE)
+        except BaseException:
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
     except OSError as exc:
         logger.warning("Failed to write healthcheck file: %s (%s)", HEALTHCHECK_FILE, exc)

@@ -16,6 +16,7 @@ from instakindle.pipeline import (
     SENT_FOLDER,
     Pipeline,
     PipelineIterationError,
+    PipelineShutdownError,
     _write_healthcheck,
 )
 from instakindle.sender import SenderError
@@ -257,16 +258,14 @@ class TestRunForever:
         mock_sleep: MagicMock,
         sample_config: Config,
     ) -> None:
-        """run_forever should raise SystemExit after MAX_CONSECUTIVE_FAILURES."""
+        """run_forever should raise PipelineShutdownError after MAX_CONSECUTIVE_FAILURES."""
         mock_client = mock_client_cls.return_value
         mock_client.get_bookmarks.side_effect = InstapaperError("auth failed")
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(PipelineShutdownError):
             pipeline.run_forever()
-
-        assert exc_info.value.code == 1
         assert mock_client.get_bookmarks.call_count == MAX_CONSECUTIVE_FAILURES
 
     @patch("instakindle.pipeline.time.sleep")
@@ -329,7 +328,7 @@ class TestRunForever:
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(SystemExit):
+        with pytest.raises(PipelineShutdownError):
             pipeline.run_forever()
 
         poll = sample_config.poll_interval
@@ -359,7 +358,7 @@ class TestRunForever:
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(SystemExit):
+        with pytest.raises(PipelineShutdownError):
             pipeline.run_forever()
 
         sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
@@ -421,10 +420,9 @@ class TestRunForever:
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(PipelineShutdownError):
             pipeline.run_forever()
 
-        assert exc_info.value.code == 1
         assert mock_client.get_bookmarks.call_count == MAX_CONSECUTIVE_FAILURES
 
     @patch("instakindle.pipeline.time.sleep")
@@ -455,10 +453,9 @@ class TestRunForever:
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(SystemExit) as exc_info:
+        with pytest.raises(PipelineShutdownError):
             pipeline.run_forever()
 
-        assert exc_info.value.code == 1
         assert mock_client.get_bookmarks.call_count == MAX_CONSECUTIVE_FAILURES
 
 
@@ -467,17 +464,19 @@ class TestWriteHealthcheck:
 
     def test_writes_timestamp_file(self, tmp_path: Path) -> None:
         """_write_healthcheck should create a file with timestamp and poll interval."""
-        import time
-
         hc_file = tmp_path / "healthcheck"
-        with patch("instakindle.pipeline.HEALTHCHECK_FILE", hc_file):
+        fixed_timestamp = 1_700_000_000.0
+        with (
+            patch("instakindle.pipeline.HEALTHCHECK_FILE", hc_file),
+            patch("instakindle.pipeline.time.time", return_value=fixed_timestamp),
+        ):
             _write_healthcheck(900)
 
         assert hc_file.exists()
         parts = hc_file.read_text().split()
         ts = float(parts[0])
         interval = int(parts[1])
-        assert abs(ts - time.time()) < 5
+        assert ts == fixed_timestamp
         assert interval == 900
 
     @patch("instakindle.pipeline.time.sleep")
