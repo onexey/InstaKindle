@@ -19,6 +19,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SENT_FOLDER = "InstaKindle"
+MAX_CONSECUTIVE_FAILURES = 10
+_MAX_BACKOFF_SECONDS = 3600  # 1 hour
+_BACKOFF_EXPONENT_CAP = 4
+HEALTHCHECK_FILE = Path("/tmp/instakindle_last_success")
 
 
 class Pipeline:
@@ -46,7 +50,12 @@ class Pipeline:
         )
 
     def run_forever(self) -> None:
-        """Run the pipeline in a continuous loop."""
+        """Run the pipeline in a continuous loop.
+
+        Uses exponential backoff on repeated failures and shuts down after
+        ``MAX_CONSECUTIVE_FAILURES`` consecutive errors to avoid wasting
+        resources on known-broken configurations.
+        """
         logger.info(
             "Starting InstaKindle pipeline (poll_interval=%ds)",
             self._config.poll_interval,
@@ -55,16 +64,41 @@ class Pipeline:
         # Authenticate once at startup
         self._client.authenticate()
 
+        consecutive_failures = 0
+
         while True:
             try:
                 self.run_once()
+                consecutive_failures = 0
+                _write_healthcheck()
             except InstapaperError:
-                logger.exception("Instapaper API error during pipeline run")
+                consecutive_failures += 1
+                logger.exception(
+                    "Instapaper API error (%d/%d)",
+                    consecutive_failures,
+                    MAX_CONSECUTIVE_FAILURES,
+                )
             except Exception:
-                logger.exception("Unexpected error during pipeline run")
+                consecutive_failures += 1
+                logger.exception(
+                    "Unexpected error (%d/%d)",
+                    consecutive_failures,
+                    MAX_CONSECUTIVE_FAILURES,
+                )
 
-            logger.info("Sleeping for %d seconds...", self._config.poll_interval)
-            time.sleep(self._config.poll_interval)
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                logger.critical(
+                    "Exceeded %d consecutive failures, shutting down",
+                    MAX_CONSECUTIVE_FAILURES,
+                )
+                raise SystemExit(1)
+
+            backoff = self._config.poll_interval * (
+                2 ** min(consecutive_failures, _BACKOFF_EXPONENT_CAP)
+            )
+            sleep_seconds = min(backoff, _MAX_BACKOFF_SECONDS)
+            logger.info("Sleeping for %d seconds...", sleep_seconds)
+            time.sleep(sleep_seconds)
 
     def run_once(self) -> int:
         """Run a single iteration of the pipeline.
@@ -142,3 +176,11 @@ class Pipeline:
                 logger.debug("Cleaned up temp directory: %s", directory)
         except OSError:
             logger.warning("Failed to clean up temp directory: %s", directory)
+
+
+def _write_healthcheck() -> None:
+    """Write current timestamp to the healthcheck file."""
+    try:
+        HEALTHCHECK_FILE.write_text(str(time.time()))
+    except OSError:
+        logger.warning("Failed to write healthcheck file: %s", HEALTHCHECK_FILE)

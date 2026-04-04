@@ -44,8 +44,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN useradd --create-home --shell /bin/bash appuser
 USER appuser
 
-# Healthcheck — verify the module can be imported
+# Healthcheck — verify the pipeline ran successfully within the last 30 minutes
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
-    CMD python -c "import instakindle" || exit 1
+    CMD python -c "\
+import sys, time, pathlib; \
+p = pathlib.Path('/tmp/instakindle_last_success'); \
+sys.exit(0 if p.exists() and time.time() - float(p.read_text()) < 1800 else 1)" || exit 1
 
 ENTRYPOINT ["python", "-m", "instakindle"]
