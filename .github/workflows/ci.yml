@@ -26,7 +26,7 @@ jobs:
 
       - name: Check lock file is up to date
         run: |
-          pip-compile --allow-unsafe --output-file=requirements.lock --strip-extras pyproject.toml
+          pip-compile --allow-unsafe --no-header --output-file=requirements.lock --strip-extras pyproject.toml
           git diff --exit-code requirements.lock
 
   lint:
@@ -97,6 +97,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          load: true
           push: false
           tags: instakindle:test
           cache-from: type=gha
