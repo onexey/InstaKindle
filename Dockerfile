@@ -45,13 +45,18 @@ RUN useradd --create-home --shell /bin/bash appuser
 USER appuser
 
 # Healthcheck — verify the pipeline ran successfully recently.
-# Threshold adapts to POLL_INTERVAL: max(POLL_INTERVAL * 3, 1800) seconds.
+# The healthcheck file contains "<timestamp> <poll_interval>" written by the
+# pipeline, so the threshold adapts to the effective poll interval even when
+# set via CLI rather than the POLL_INTERVAL env var.
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
     CMD python -c "\
-import sys, time, pathlib, os; \
+import sys, time, pathlib; \
 p = pathlib.Path('/tmp/instakindle_last_success'); \
-interval = int(os.environ.get('POLL_INTERVAL', '900')); \
+parts = p.read_text().split() if p.exists() else []; \
+sys.exit(1) if not parts else None; \
+ts = float(parts[0]); \
+interval = int(parts[1]) if len(parts) > 1 else 900; \
 threshold = max(interval * 3, 1800); \
-sys.exit(0 if p.exists() and time.time() - float(p.read_text()) < threshold else 1)" || exit 1
+sys.exit(0 if time.time() - ts < threshold else 1)" || exit 1
 
 ENTRYPOINT ["python", "-m", "instakindle"]

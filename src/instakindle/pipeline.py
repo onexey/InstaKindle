@@ -74,7 +74,7 @@ class Pipeline:
             try:
                 self.run_once()
                 consecutive_failures = 0
-                _write_healthcheck()
+                _write_healthcheck(self._config.poll_interval)
             except PipelineIterationError:
                 consecutive_failures += 1
                 logger.warning(
@@ -119,6 +119,11 @@ class Pipeline:
 
         Returns:
             Number of articles successfully processed.
+
+        Raises:
+            PipelineIterationError: If articles were found but none could be
+                processed successfully (e.g., persistent conversion or
+                sending failures).
         """
         articles = self._client.get_bookmarks()
 
@@ -197,9 +202,14 @@ class Pipeline:
             logger.warning("Failed to clean up temp directory: %s", directory)
 
 
-def _write_healthcheck() -> None:
-    """Write current timestamp to the healthcheck file."""
+def _write_healthcheck(poll_interval: int) -> None:
+    """Write current timestamp and poll interval to the healthcheck file.
+
+    The file contains ``<timestamp> <poll_interval>`` so the Docker
+    healthcheck can derive a staleness threshold from the effective
+    poll interval, even when it differs from the ``POLL_INTERVAL`` env var.
+    """
     try:
-        HEALTHCHECK_FILE.write_text(str(time.time()))
-    except OSError:
-        logger.warning("Failed to write healthcheck file: %s", HEALTHCHECK_FILE)
+        HEALTHCHECK_FILE.write_text(f"{time.time()} {poll_interval}")
+    except OSError as exc:
+        logger.warning("Failed to write healthcheck file: %s (%s)", HEALTHCHECK_FILE, exc)

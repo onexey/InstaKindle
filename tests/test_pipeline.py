@@ -301,9 +301,10 @@ class TestRunForever:
 
         pipeline = Pipeline(sample_config)
 
-        with patch("instakindle.pipeline._write_healthcheck"), pytest.raises(
-            SystemExit
-        ) as exc_info:
+        with (
+            patch("instakindle.pipeline._write_healthcheck"),
+            pytest.raises(SystemExit) as exc_info,
+        ):
             pipeline.run_forever()
 
         # Should have hit our escape hatch, not the MAX_CONSECUTIVE_FAILURES exit
@@ -465,16 +466,19 @@ class TestWriteHealthcheck:
     """Tests for the healthcheck file writer."""
 
     def test_writes_timestamp_file(self, tmp_path: Path) -> None:
-        """_write_healthcheck should create a file with a float timestamp."""
+        """_write_healthcheck should create a file with timestamp and poll interval."""
         import time
 
         hc_file = tmp_path / "healthcheck"
         with patch("instakindle.pipeline.HEALTHCHECK_FILE", hc_file):
-            _write_healthcheck()
+            _write_healthcheck(900)
 
         assert hc_file.exists()
-        ts = float(hc_file.read_text())
+        parts = hc_file.read_text().split()
+        ts = float(parts[0])
+        interval = int(parts[1])
         assert abs(ts - time.time()) < 5
+        assert interval == 900
 
     @patch("instakindle.pipeline.time.sleep")
     @patch("instakindle.pipeline.KindleSender")
