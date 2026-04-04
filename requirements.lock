@@ -1,0 +1,32 @@
+beautifulsoup4==4.14.3
+    # via instakindle (pyproject.toml)
+certifi==2026.2.25
+    # via requests
+charset-normalizer==3.4.7
+    # via requests
+ebooklib==0.20
+    # via instakindle (pyproject.toml)
+idna==3.11
+    # via requests
+lxml==5.4.0
+    # via
+    #   ebooklib
+    #   instakindle (pyproject.toml)
+oauthlib==3.3.1
+    # via requests-oauthlib
+python-dotenv==1.2.2
+    # via instakindle (pyproject.toml)
+requests==2.33.1
+    # via
+    #   instakindle (pyproject.toml)
+    #   requests-oauthlib
+requests-oauthlib==2.0.0
+    # via instakindle (pyproject.toml)
+six==1.17.0
+    # via ebooklib
+soupsieve==2.8.3
+    # via beautifulsoup4
+typing-extensions==4.15.0
+    # via beautifulsoup4
+urllib3==2.6.3
+    # via requests

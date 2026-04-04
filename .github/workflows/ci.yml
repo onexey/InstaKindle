@@ -10,6 +10,27 @@ permissions:
   contents: read
 
 jobs:
+  check-lock:
+    name: Check Lock File
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install pip-tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-tools==7.5.3
+
+      - name: Check lock file is up to date
+        run: |
+          pip-compile --allow-unsafe --no-header --output-file=requirements.lock --strip-extras pyproject.toml
+          git diff --exit-code requirements.lock
+
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
@@ -78,6 +99,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          load: true
           push: false
           tags: instakindle:test
           cache-from: type=gha

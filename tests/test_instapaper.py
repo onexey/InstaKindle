@@ -140,8 +140,18 @@ class TestInstapaperClient:
         bookmarks_response.json.return_value = {
             "user": {"type": "user", "user_id": 123},
             "bookmarks": [
-                {"type": "bookmark", "bookmark_id": 1, "title": "Article 1", "url": "https://a.com"},
-                {"type": "bookmark", "bookmark_id": 2, "title": "Article 2", "url": "https://b.com"},
+                {
+                    "type": "bookmark",
+                    "bookmark_id": 1,
+                    "title": "Article 1",
+                    "url": "https://a.com",
+                },
+                {
+                    "type": "bookmark",
+                    "bookmark_id": 2,
+                    "title": "Article 2",
+                    "url": "https://b.com",
+                },
             ],
             "highlights": [],
         }
