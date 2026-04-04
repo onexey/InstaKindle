@@ -86,3 +86,22 @@ class TestKindleSender:
             assert len(payloads) == 2
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
+
+    def test_build_message_quotes_filename(self) -> None:
+        """Content-Disposition filename should be properly quoted/encoded."""
+        work_dir = Path(tempfile.mkdtemp(prefix="instakindle_test_"))
+        try:
+            epub_file = work_dir / "Why I_m Not Worried.epub"
+            epub_file.write_bytes(b"fake epub data")
+
+            sender = self._make_sender()
+            msg = sender._build_message(epub_file, "Why I'm Not Worried")
+
+            attachment = msg.get_payload()[1]
+            content_disp = attachment["Content-Disposition"]
+            # The filename must be properly quoted (not bare/unquoted)
+            assert "filename" in content_disp
+            # Python's add_header with keyword args quotes filenames with spaces
+            assert "Why I_m Not Worried.epub" in content_disp
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)

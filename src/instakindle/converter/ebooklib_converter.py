@@ -184,6 +184,12 @@ def _sanitize_filename(name: str) -> str:
     """Sanitize a string for use as a filename."""
     for char in r'<>:"/\|?*':
         name = name.replace(char, "_")
+    # Replace curly/smart quotes and apostrophes that can break MIME headers
+    # and cause issues with email-based delivery services like Send-to-Kindle
+    for char in "\u2018\u2019\u201a\u201b'":
+        name = name.replace(char, "_")
+    for char in "\u201c\u201d\u201e\u201f":
+        name = name.replace(char, "_")
     return name[:200].strip().rstrip(".")
 
 
