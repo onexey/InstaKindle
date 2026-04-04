@@ -104,7 +104,7 @@ class TestInstapaperClient:
         auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
         auth_response.raise_for_status = MagicMock()
 
-        # Second call: get bookmarks
+        # Second call: get bookmarks (list format)
         bookmarks_response = MagicMock()
         bookmarks_response.json.return_value = [
             {"type": "meta"},
@@ -123,6 +123,56 @@ class TestInstapaperClient:
         assert len(articles) == 2
         assert articles[0].title == "Article 1"
         assert articles[1].bookmark_id == 2
+
+    def test_get_bookmarks_dict_format(self) -> None:
+        """get_bookmarks should handle dict response with 'bookmarks' key."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        bookmarks_response = MagicMock()
+        bookmarks_response.json.return_value = {
+            "user": {"type": "user", "user_id": 123},
+            "bookmarks": [
+                {"type": "bookmark", "bookmark_id": 1, "title": "Article 1", "url": "https://a.com"},
+                {"type": "bookmark", "bookmark_id": 2, "title": "Article 2", "url": "https://b.com"},
+            ],
+            "highlights": [],
+        }
+        bookmarks_response.raise_for_status = MagicMock()
+        mock_session.request.return_value = bookmarks_response
+
+        articles = client.get_bookmarks()
+
+        assert len(articles) == 2
+        assert articles[0].title == "Article 1"
+        assert articles[1].bookmark_id == 2
+
+    def test_get_bookmarks_error_response(self) -> None:
+        """get_bookmarks should raise InstapaperError when API returns error dict."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        error_response = MagicMock()
+        error_response.json.return_value = {"error": 1241, "message": "Invalid or missing bookmark_id"}
+        error_response.raise_for_status = MagicMock()
+        mock_session.request.return_value = error_response
+
+        with pytest.raises(InstapaperError, match="API returned error"):
+            client.get_bookmarks()
 
     def test_get_article_html(self) -> None:
         """get_article_html should return HTML content."""
@@ -167,6 +217,29 @@ class TestInstapaperClient:
         # Should not raise — tagging failure is non-fatal
         client.tag_bookmark(123, "sent-to-kindle")
 
+    def test_tag_bookmark_correct_endpoint(self) -> None:
+        """tag_bookmark should use the /bookmarks/{id}/tags/add endpoint."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        tag_response = MagicMock()
+        tag_response.json.return_value = []
+        tag_response.raise_for_status = MagicMock()
+        mock_session.request.return_value = tag_response
+
+        client.tag_bookmark(123, "sent-to-kindle")
+        mock_session.request.assert_called_once()
+        call_args = mock_session.request.call_args
+        assert "bookmarks/123/tags/add" in call_args[0][1]
+        assert call_args[1]["data"] == {"tag": "sent-to-kindle"}
+
     def test_archive_bookmark(self) -> None:
         """archive_bookmark should make the correct API call."""
         mock_session = MagicMock(spec=requests.Session)
@@ -188,3 +261,99 @@ class TestInstapaperClient:
         mock_session.request.assert_called_once()
         call_args = mock_session.request.call_args
         assert "bookmarks/archive" in call_args[0][1]
+
+    def test_get_or_create_folder_existing(self) -> None:
+        """get_or_create_folder should return ID of an existing folder."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        list_response = MagicMock()
+        list_response.json.return_value = [
+            {"type": "folder", "folder_id": 99, "title": "InstaKindle"},
+        ]
+        list_response.raise_for_status = MagicMock()
+        mock_session.request.return_value = list_response
+
+        folder_id = client.get_or_create_folder("InstaKindle")
+        assert folder_id == "99"
+
+    def test_get_or_create_folder_creates_new(self) -> None:
+        """get_or_create_folder should create a folder when it doesn't exist."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        list_response = MagicMock()
+        list_response.json.return_value = []
+        list_response.raise_for_status = MagicMock()
+
+        create_response = MagicMock()
+        create_response.json.return_value = [
+            {"type": "folder", "folder_id": 101, "title": "InstaKindle"},
+        ]
+        create_response.raise_for_status = MagicMock()
+
+        mock_session.request.side_effect = [list_response, create_response]
+
+        folder_id = client.get_or_create_folder("InstaKindle")
+        assert folder_id == "101"
+
+    def test_get_or_create_folder_cached(self) -> None:
+        """get_or_create_folder should use cached ID on second call."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        list_response = MagicMock()
+        list_response.json.return_value = [
+            {"type": "folder", "folder_id": 99, "title": "InstaKindle"},
+        ]
+        list_response.raise_for_status = MagicMock()
+        mock_session.request.return_value = list_response
+
+        client.get_or_create_folder("InstaKindle")
+        client.get_or_create_folder("InstaKindle")
+        # Only one API call — second hit the cache
+        mock_session.request.assert_called_once()
+
+    def test_move_bookmark(self) -> None:
+        """move_bookmark should call the correct endpoint."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        move_response = MagicMock()
+        move_response.json.return_value = []
+        move_response.raise_for_status = MagicMock()
+        mock_session.request.return_value = move_response
+
+        client.move_bookmark(123, "99")
+        mock_session.request.assert_called_once()
+        call_args = mock_session.request.call_args
+        assert "bookmarks/move" in call_args[0][1]
+        assert call_args[1]["data"] == {"bookmark_id": "123", "folder_id": "99"}

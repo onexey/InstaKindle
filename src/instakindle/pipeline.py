@@ -1,10 +1,13 @@
-"""Main pipeline: fetch → convert → send → tag → archive → repeat."""
+"""Main pipeline: fetch → convert → send → move → repeat."""
 
 from __future__ import annotations
 
+import html
 import logging
 import shutil
+import tempfile
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from instakindle.converter.base import Converter, get_converter
@@ -12,19 +15,17 @@ from instakindle.instapaper import Article, InstapaperClient, InstapaperError
 from instakindle.sender import KindleSender, SenderError
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from instakindle.config import Config
 
 logger = logging.getLogger(__name__)
 
-SENT_TAG = "sent-to-kindle"
+SENT_FOLDER = "InstaKindle"
 
 
 class Pipeline:
     """Orchestrates the InstaKindle pipeline.
 
-    Fetch → Convert → Send → Tag → Archive → Repeat
+    Fetch → Convert → Send → Move to folder → Repeat
     """
 
     def __init__(self, config: Config) -> None:
@@ -114,11 +115,9 @@ class Pipeline:
                 # Step 3: Send to Kindle
                 self._sender.send_epub(result.epub_path, article.title)
 
-                # Step 4: Tag the article
-                self._client.tag_bookmark(article.bookmark_id, SENT_TAG)
-
-                # Step 5: Archive the article
-                self._client.archive_bookmark(article.bookmark_id)
+                # Step 4: Move to InstaKindle folder (removes from unread)
+                folder_id = self._client.get_or_create_folder(SENT_FOLDER)
+                self._client.move_bookmark(article.bookmark_id, folder_id)
 
                 logger.info("Successfully processed: '%s'", article.title)
                 return True
@@ -138,7 +137,8 @@ class Pipeline:
     def _cleanup(directory: Path) -> None:
         """Remove temporary conversion directory."""
         try:
-            if directory.exists() and str(directory).startswith("/tmp"):
+            temp_root = str(Path(tempfile.gettempdir()).resolve())
+            if directory.exists() and str(directory.resolve()).startswith(temp_root):
                 shutil.rmtree(directory)
                 logger.debug("Cleaned up temp directory: %s", directory)
         except OSError:

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from instakindle.converter.base import ConversionResult
 from instakindle.instapaper import Article, InstapaperError
-from instakindle.pipeline import SENT_TAG, Pipeline
+from instakindle.pipeline import SENT_FOLDER, Pipeline
 from instakindle.sender import SenderError
 
 if TYPE_CHECKING:
@@ -53,6 +53,7 @@ class TestPipeline:
         mock_client = mock_client_cls.return_value
         mock_client.get_bookmarks.return_value = [sample_article]
         mock_client.get_article_html.return_value = "<p>Content</p>"
+        mock_client.get_or_create_folder.return_value = "42"
 
         mock_converter = mock_get_converter.return_value
         mock_converter.convert.return_value = ConversionResult(
@@ -70,8 +71,8 @@ class TestPipeline:
         mock_client.get_article_html.assert_called_once_with(sample_article.bookmark_id)
         mock_converter.convert.assert_called_once()
         mock_sender.send_epub.assert_called_once()
-        mock_client.tag_bookmark.assert_called_once_with(sample_article.bookmark_id, SENT_TAG)
-        mock_client.archive_bookmark.assert_called_once_with(sample_article.bookmark_id)
+        mock_client.get_or_create_folder.assert_called_once_with(SENT_FOLDER)
+        mock_client.move_bookmark.assert_called_once_with(sample_article.bookmark_id, "42")
 
     @patch("instakindle.pipeline.KindleSender")
     @patch("instakindle.pipeline.get_converter")
@@ -104,7 +105,7 @@ class TestPipeline:
 
         assert count == 0
         mock_sender.send_epub.assert_not_called()
-        mock_client.archive_bookmark.assert_not_called()
+        mock_client.move_bookmark.assert_not_called()
 
     @patch("instakindle.pipeline.KindleSender")
     @patch("instakindle.pipeline.get_converter")
@@ -160,8 +161,7 @@ class TestPipeline:
         count = pipeline.run_once()
 
         assert count == 0
-        mock_client.tag_bookmark.assert_not_called()
-        mock_client.archive_bookmark.assert_not_called()
+        mock_client.move_bookmark.assert_not_called()
 
     @patch("instakindle.pipeline.KindleSender")
     @patch("instakindle.pipeline.get_converter")
@@ -183,6 +183,7 @@ class TestPipeline:
             InstapaperError("API error"),  # article1 fails
             "<p>Content 2</p>",  # article2 succeeds
         ]
+        mock_client.get_or_create_folder.return_value = "42"
 
         mock_converter = mock_get_converter.return_value
         mock_converter.convert.return_value = ConversionResult(

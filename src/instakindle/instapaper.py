@@ -64,6 +64,7 @@ class InstapaperClient:
         self._session = session or requests.Session()
         self._oauth_token: str = ""
         self._oauth_token_secret: str = ""
+        self._folder_cache: dict[str, str] = {}  # name -> folder_id
 
     @property
     def is_authenticated(self) -> bool:
@@ -143,7 +144,9 @@ class InstapaperClient:
                 timeout=30,
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            logger.debug("API response (%s): %s", endpoint, result)
+            return result
         except requests.RequestException as e:
             raise InstapaperError(f"API request failed ({endpoint}): {e}") from e
 
@@ -163,6 +166,15 @@ class InstapaperClient:
             "/bookmarks/list",
             data={"limit": str(limit), "folder_id": folder_id},
         )
+
+        if isinstance(response_data, dict):
+            if "error" in response_data:
+                raise InstapaperError(
+                    f"API returned error: {response_data.get('error')} - "
+                    f"{response_data.get('message', 'unknown error')}"
+                )
+            # API may return {"user": ..., "bookmarks": [...], "highlights": ...}
+            response_data = response_data.get("bookmarks", [])
 
         articles = []
         for item in response_data:
@@ -206,12 +218,11 @@ class InstapaperClient:
         try:
             self._api_request(
                 "POST",
-                "/bookmarks/tags/add",
-                data={"bookmark_id": str(bookmark_id), "tag": tag},
+                f"/bookmarks/{bookmark_id}/tags/add",
+                data={"tag": tag},
             )
         except InstapaperError:
-            # Tagging may not be available on all Instapaper plans; log and continue
-            logger.warning("Failed to tag bookmark %d (tagging may not be supported)", bookmark_id)
+            logger.warning("Failed to tag bookmark %d", bookmark_id, exc_info=True)
 
     def archive_bookmark(self, bookmark_id: int) -> None:
         """Archive a bookmark.
@@ -226,3 +237,51 @@ class InstapaperClient:
             data={"bookmark_id": str(bookmark_id)},
         )
         logger.debug("Archived bookmark %d", bookmark_id)
+
+    def get_or_create_folder(self, title: str) -> str:
+        """Get folder ID by title, creating it if it doesn't exist.
+
+        Args:
+            title: Folder title.
+
+        Returns:
+            The folder_id as a string.
+        """
+        if title in self._folder_cache:
+            return self._folder_cache[title]
+
+        # List existing folders
+        folders = self._api_request("POST", "/folders/list")
+        for item in folders:
+            if isinstance(item, dict) and item.get("type") == "folder":
+                if item.get("title") == title:
+                    folder_id = str(item["folder_id"])
+                    self._folder_cache[title] = folder_id
+                    logger.info("Found existing folder '%s' (id=%s)", title, folder_id)
+                    return folder_id
+
+        # Create folder
+        result = self._api_request("POST", "/folders/add", data={"title": title})
+        for item in result:
+            if isinstance(item, dict) and item.get("type") == "folder":
+                folder_id = str(item["folder_id"])
+                self._folder_cache[title] = folder_id
+                logger.info("Created folder '%s' (id=%s)", title, folder_id)
+                return folder_id
+
+        raise InstapaperError(f"Failed to create folder '{title}'")
+
+    def move_bookmark(self, bookmark_id: int, folder_id: str) -> None:
+        """Move a bookmark to a folder.
+
+        Args:
+            bookmark_id: The Instapaper bookmark ID.
+            folder_id: The target folder ID.
+        """
+        logger.debug("Moving bookmark %d to folder %s...", bookmark_id, folder_id)
+        self._api_request(
+            "POST",
+            "/bookmarks/move",
+            data={"bookmark_id": str(bookmark_id), "folder_id": folder_id},
+        )
+        logger.debug("Moved bookmark %d to folder %s", bookmark_id, folder_id)
