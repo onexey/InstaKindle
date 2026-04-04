@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html as html_mod
 import logging
 import shutil
 import subprocess
@@ -125,11 +126,12 @@ def _sanitize_filename(name: str) -> str:
 
 def _wrap_html(body_html: str, title: str) -> str:
     """Wrap body HTML in a full HTML document."""
+    safe_title = html_mod.escape(title)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>{title}</title>
+    <title>{safe_title}</title>
     <style>
         body {{ font-family: serif; line-height: 1.6; margin: 1em; }}
         pre, code {{ font-family: monospace; font-size: 0.9em; }}
@@ -142,7 +144,7 @@ def _wrap_html(body_html: str, title: str) -> str:
     </style>
 </head>
 <body>
-<h1>{title}</h1>
+<h1>{safe_title}</h1>
 {body_html}
 </body>
 </html>"""

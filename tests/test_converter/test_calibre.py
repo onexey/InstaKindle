@@ -121,3 +121,15 @@ class TestWrapHtml:
         assert "<title>Test Title</title>" in result
         assert "<p>Hello</p>" in result
         assert "monospace" in result  # CSS should be present
+
+    def test_escapes_html_in_title(self) -> None:
+        result = _wrap_html("<p>Body</p>", '<script>alert("xss")</script>')
+        assert "<script>" not in result
+        assert "&lt;script&gt;" in result
+        assert "<title>&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;</title>" in result
+        assert "<h1>&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;</h1>" in result
+
+    def test_escapes_ampersand_in_title(self) -> None:
+        result = _wrap_html("<p>Body</p>", "Tom & Jerry")
+        assert "<title>Tom &amp; Jerry</title>" in result
+        assert "<h1>Tom &amp; Jerry</h1>" in result
