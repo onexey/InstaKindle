@@ -42,24 +42,9 @@ All configuration is provided via environment variables (or equivalent CLI argum
 
 ## Quick Start
 
-```bash
-docker run -d \
-  --name instakindle \
-  --restart unless-stopped \
-  -e INSTAPAPER_KEY=your_key \
-  -e INSTAPAPER_SECRET=your_secret \
-  -e INSTAPAPER_USERNAME=you@example.com \
-  -e INSTAPAPER_PASSWORD=your_password \
-  -e KINDLE_EMAIL=you@kindle.com \
-  -e SMTP_HOST=smtp.gmail.com \
-  -e SMTP_PORT=587 \
-  -e SMTP_USERNAME=you@gmail.com \
-  -e SMTP_PASSWORD=your_app_password \
-  -e SENDER_EMAIL=you@gmail.com \
-  ghcr.io/onexey/instakindle
-```
+### Docker Compose
 
-## Docker Compose
+The repository includes a ready-to-use `docker-compose.yml`:
 
 ```yaml
 services:
@@ -82,38 +67,46 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
 ```
 
-## How Ebook Conversion Works
+1. Copy `.env.example` to `.env` and fill in your credentials:
 
-Articles are fetched as HTML from Instapaper and converted to EPUB using [ebooklib](https://github.com/aerkalov/ebooklib), a pure-Python library with zero system dependencies. The resulting EPUB is sent directly to Kindle via email (Amazon converts EPUB to Kindle format on receipt).
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values
+   ```
 
-The conversion handles:
+2. Start the container:
 
-- **Images** — Downloaded and embedded inline in the ebook
-- **Code blocks** — Preserved with monospace formatting and syntax structure
-- **Typography** — Clean, readable formatting suitable for e-ink displays
-- **Metadata** — Title, author, and source URL are set in the ebook metadata
+   ```bash
+   docker compose up -d
+   ```
 
-## Architecture
+3. View logs:
 
-```
-┌─────────────┐     ┌──────────────┐     ┌───────────┐     ┌────────┐
-│  Instapaper  │────▶│  InstaKindle │────▶│ Converter │────▶│ Kindle │
-│     API      │◀────│   (Python)   │     │ (ebooklib)│     │ (SMTP) │
-│              │ tag │              │     │           │     │        │
-│              │+arch│              │     │           │     │        │
-└─────────────┘     └──────────────┘     └───────────┘     └────────┘
-```
+   ```bash
+   docker compose logs -f instakindle
+   ```
 
-- **Language**: Python
-- **Base image**: `python:3.13-slim`
-- **Ebook conversion**: [ebooklib](https://github.com/aerkalov/ebooklib) (pure Python)
-- **Email delivery**: Python `smtplib` (SMTP with TLS)
-
-## Building
+### CLI
 
 ```bash
-docker build -t instakindle .
+pip install .
+instakindle \
+  --instapaper-key your_key \
+  --instapaper-secret your_secret \
+  --instapaper-username you@example.com \
+  --instapaper-password your_password \
+  --kindle-email you@kindle.com \
+  --smtp-host smtp.gmail.com \
+  --smtp-port 587 \
+  --smtp-username you@gmail.com \
+  --smtp-password your_app_password \
+  --sender-email you@gmail.com
 ```
+
+## Documentation
+
+- [Deployment Guide](docs/deployment.md) — Building, publishing, Docker Compose, credential setup, and troubleshooting
+- [Development Guide](docs/development.md) — Local setup, testing, linting, architecture, and contributing
 
 ## License
 
