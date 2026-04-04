@@ -49,13 +49,16 @@ def retry(
         The decorated function.
 
     Raises:
-        ValueError: If ``max_attempts < 1`` or ``backoff_factor <= 0``.
+        ValueError: If ``max_attempts < 1``, ``backoff_factor <= 0``, or
+            ``exceptions`` is empty.
         The last caught exception if all attempts are exhausted.
     """
     if max_attempts < 1:
         raise ValueError(f"max_attempts must be >= 1, got {max_attempts}")
     if backoff_factor <= 0:
         raise ValueError(f"backoff_factor must be > 0, got {backoff_factor}")
+    if not exceptions:
+        raise ValueError("exceptions must be a non-empty tuple of exception types")
 
     def decorator(func: _F) -> _F:
         @wraps(func)

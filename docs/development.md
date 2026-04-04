@@ -140,13 +140,15 @@ limits). Two complementary mechanisms are in place:
 
 | Mechanism | Where used | How it works |
 |---|---|---|
-| `urllib3.util.Retry` + `HTTPAdapter` | `InstapaperClient` session | Transport-level retry for all HTTP requests (status 429/500/502/503/504) |
+| `urllib3.util.Retry` + `HTTPAdapter` | `InstapaperClient` session | Transport-level retry for GET and POST on status 429/500/502/503/504 (POST is safe here because the Instapaper API operations are effectively idempotent) |
 | `@retry` decorator (`instakindle.retry`) | Image downloads, SMTP sending | Application-level retry with exponential backoff |
 
 **When adding new network operations**, always apply one of these patterns:
 
 - For `requests.Session` based calls — mount a `Retry` adapter on the session
-  (see `InstapaperClient._build_session()`).
+  if the operations are idempotent or safe to retry (see
+  `InstapaperClient._build_session()`).  Limit `allowed_methods` to only the
+  HTTP methods that are safe for your use case.
 - For standalone `requests.get/post` or non-HTTP I/O — decorate the function
   with `@retry(...)` (see `converter/base.py:_download_image()` and
   `sender.py:KindleSender.send_epub()`).

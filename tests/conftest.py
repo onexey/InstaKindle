@@ -73,6 +73,12 @@ def sample_config() -> Config:
     )
 
 
+@pytest.fixture(autouse=True)
+def mock_retry_sleep(mocker: MagicMock) -> MagicMock:
+    """Stub time.sleep in the retry module to prevent real delays in tests."""
+    return mocker.patch("instakindle.retry.time.sleep", return_value=None)
+
+
 @pytest.fixture()
 def mock_smtp(mocker: MagicMock) -> MagicMock:
     """Mock smtplib.SMTP for sender tests."""

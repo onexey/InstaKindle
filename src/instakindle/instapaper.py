@@ -72,11 +72,15 @@ class InstapaperClient:
     def _build_session() -> requests.Session:
         """Create a requests session with automatic retry on transient errors."""
         session = requests.Session()
+        # The Instapaper API uses POST for all endpoints (including read-only
+        # ones like /bookmarks/list).  The operations are effectively idempotent
+        # (archiving/moving/tagging twice has no extra side effects), so
+        # transport-level retries on POST are safe here.
         retry_strategy = Retry(
             total=3,
             backoff_factor=1,
             status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["GET"],
+            allowed_methods=["GET", "POST"],
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
         session.mount("https://", adapter)
