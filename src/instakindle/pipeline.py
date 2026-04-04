@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 SENT_FOLDER = "InstaKindle"
 MAX_CONSECUTIVE_FAILURES = 10
 _MAX_BACKOFF_SECONDS = 3600  # 1 hour
-_BACKOFF_EXPONENT_CAP = 4
+_MAX_BACKOFF_EXPONENT = 4
 HEALTHCHECK_FILE = Path("/tmp/instakindle_last_success")
 
 
@@ -94,7 +94,7 @@ class Pipeline:
                 raise SystemExit(1)
 
             backoff = self._config.poll_interval * (
-                2 ** min(consecutive_failures, _BACKOFF_EXPONENT_CAP)
+                2 ** min(consecutive_failures, _MAX_BACKOFF_EXPONENT)
             )
             sleep_seconds = min(backoff, _MAX_BACKOFF_SECONDS)
             logger.info("Sleeping for %d seconds...", sleep_seconds)

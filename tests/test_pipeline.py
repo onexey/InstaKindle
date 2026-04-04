@@ -11,6 +11,7 @@ import pytest
 from instakindle.converter.base import ConversionResult
 from instakindle.instapaper import Article, InstapaperError
 from instakindle.pipeline import (
+    _MAX_BACKOFF_SECONDS,
     MAX_CONSECUTIVE_FAILURES,
     SENT_FOLDER,
     Pipeline,
@@ -345,7 +346,7 @@ class TestRunForever:
         mock_sleep: MagicMock,
         sample_config: Config,
     ) -> None:
-        """Backoff should never exceed _MAX_BACKOFF_SECONDS (3600)."""
+        """Backoff should never exceed _MAX_BACKOFF_SECONDS."""
         mock_client = mock_client_cls.return_value
         mock_client.get_bookmarks.side_effect = InstapaperError("API error")
 
@@ -356,7 +357,7 @@ class TestRunForever:
 
         sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
         for sleep_val in sleep_calls:
-            assert sleep_val <= 3600
+            assert sleep_val <= _MAX_BACKOFF_SECONDS
 
     @patch("instakindle.pipeline.time.sleep")
     @patch("instakindle.pipeline.KindleSender")
@@ -370,7 +371,7 @@ class TestRunForever:
         mock_sleep: MagicMock,
         sample_config: Config,
     ) -> None:
-        """On success, sleep should be the normal poll_interval (backoff * 2^0)."""
+        """On success, sleep should be the normal poll_interval (poll_interval * 2^0)."""
         call_count = 0
 
         mock_client = mock_client_cls.return_value
