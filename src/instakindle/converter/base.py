@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 import requests
 from bs4 import BeautifulSoup
 
+from instakindle.retry import retry
+
 if TYPE_CHECKING:
     from instakindle.instapaper import Article
 
@@ -66,8 +68,7 @@ class Converter(ABC):
                 continue
 
             try:
-                response = requests.get(src, timeout=30)
-                response.raise_for_status()
+                response = _download_image(src)
 
                 # Determine file extension from content type
                 content_type = response.headers.get("content-type", "image/jpeg")
@@ -88,6 +89,21 @@ class Converter(ABC):
     def create_temp_dir() -> Path:
         """Create a temporary directory for conversion artifacts."""
         return Path(tempfile.mkdtemp(prefix="instakindle_"))
+
+
+_TRANSIENT_EXCEPTIONS = (requests.ConnectionError, requests.Timeout)
+
+
+@retry(max_attempts=3, backoff_factor=2.0, exceptions=_TRANSIENT_EXCEPTIONS)
+def _download_image(url: str) -> requests.Response:
+    """Download a single image with retry on transient failures.
+
+    Only connection errors and timeouts are retried; permanent HTTP errors
+    (e.g. 404, 401) are raised immediately.
+    """
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return response
 
 
 def _extension_from_content_type(content_type: str) -> str:
