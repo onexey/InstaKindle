@@ -147,3 +147,23 @@ class TestRetryDecorator:
             mock_logger.warning.assert_called_once()
             warning_args = mock_logger.warning.call_args[0]
             assert "1/3" in warning_args[0] % warning_args[1:]
+
+    def test_rejects_zero_max_attempts(self) -> None:
+        """Should raise ValueError when max_attempts is 0."""
+        with pytest.raises(ValueError, match="max_attempts must be >= 1"):
+            retry(max_attempts=0, exceptions=(ValueError,))
+
+    def test_rejects_negative_max_attempts(self) -> None:
+        """Should raise ValueError when max_attempts is negative."""
+        with pytest.raises(ValueError, match="max_attempts must be >= 1"):
+            retry(max_attempts=-1, exceptions=(ValueError,))
+
+    def test_rejects_zero_backoff_factor(self) -> None:
+        """Should raise ValueError when backoff_factor is 0."""
+        with pytest.raises(ValueError, match="backoff_factor must be > 0"):
+            retry(max_attempts=3, backoff_factor=0, exceptions=(ValueError,))
+
+    def test_rejects_negative_backoff_factor(self) -> None:
+        """Should raise ValueError when backoff_factor is negative."""
+        with pytest.raises(ValueError, match="backoff_factor must be > 0"):
+            retry(max_attempts=3, backoff_factor=-1.0, exceptions=(ValueError,))

@@ -29,23 +29,33 @@ _F = TypeVar("_F", bound=Callable[..., Any])
 def retry(
     max_attempts: int = 3,
     backoff_factor: float = 2.0,
-    exceptions: tuple[type[BaseException], ...] = (Exception,),
+    *,
+    exceptions: tuple[type[BaseException], ...],
 ) -> Callable[[_F], _F]:
     """Decorator that retries a function on specified exceptions.
 
     Args:
         max_attempts: Total number of attempts (including the first call).
+            Must be at least 1.
         backoff_factor: Multiplier for exponential wait between retries.
             Wait time for attempt *n* (0-indexed) is ``backoff_factor ** n``
             seconds (i.e. 1 s, 2 s, 4 s for the default factor of 2.0).
+            Must be positive.
         exceptions: Tuple of exception types that trigger a retry.
+            This is a required keyword-only argument to prevent accidentally
+            retrying on all exceptions.
 
     Returns:
         The decorated function.
 
     Raises:
+        ValueError: If ``max_attempts < 1`` or ``backoff_factor <= 0``.
         The last caught exception if all attempts are exhausted.
     """
+    if max_attempts < 1:
+        raise ValueError(f"max_attempts must be >= 1, got {max_attempts}")
+    if backoff_factor <= 0:
+        raise ValueError(f"backoff_factor must be > 0, got {backoff_factor}")
 
     def decorator(func: _F) -> _F:
         @wraps(func)

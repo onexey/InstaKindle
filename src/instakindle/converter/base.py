@@ -91,9 +91,16 @@ class Converter(ABC):
         return Path(tempfile.mkdtemp(prefix="instakindle_"))
 
 
-@retry(max_attempts=3, backoff_factor=2.0, exceptions=(requests.RequestException,))
+_TRANSIENT_EXCEPTIONS = (requests.ConnectionError, requests.Timeout)
+
+
+@retry(max_attempts=3, backoff_factor=2.0, exceptions=_TRANSIENT_EXCEPTIONS)
 def _download_image(url: str) -> requests.Response:
-    """Download a single image with retry on transient failures."""
+    """Download a single image with retry on transient failures.
+
+    Only connection errors and timeouts are retried; permanent HTTP errors
+    (e.g. 404, 401) are raised immediately.
+    """
     response = requests.get(url, timeout=30)
     response.raise_for_status()
     return response

@@ -154,9 +154,11 @@ limits). Two complementary mechanisms are in place:
 Example using the decorator:
 
 ```python
+import requests
+
 from instakindle.retry import retry
 
-@retry(max_attempts=3, backoff_factor=2.0, exceptions=(requests.RequestException,))
+@retry(max_attempts=3, backoff_factor=2.0, exceptions=(requests.ConnectionError, requests.Timeout))
 def call_external_api(url: str) -> dict:
     response = requests.get(url, timeout=30)
     response.raise_for_status()
