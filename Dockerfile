@@ -16,6 +16,10 @@ COPY pyproject.toml requirements.lock ./
 # Install pinned dependencies into a virtual env
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+
+# Install build dependencies required by pyproject.toml [build-system]
+RUN pip install --no-cache-dir "setuptools>=68.0" wheel
+
 RUN pip install --no-cache-dir -r requirements.lock
 
 # Copy source and install the package itself (no dependency or build isolation)
