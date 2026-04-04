@@ -10,6 +10,25 @@ permissions:
   contents: read
 
 jobs:
+  check-lock:
+    name: Check Lock File
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install pip-tools
+        run: pip install pip-tools
+
+      - name: Check lock file is up to date
+        run: |
+          pip-compile pyproject.toml --strip-extras --allow-unsafe --output-file=requirements.lock
+          git diff --exit-code requirements.lock
+
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
