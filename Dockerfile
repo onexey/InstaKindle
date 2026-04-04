@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Builder — install Python dependencies
 # =============================================================================
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 
@@ -29,7 +29,7 @@ RUN pip install --no-cache-dir --no-deps --no-build-isolation .
 # =============================================================================
 # Stage 2: Runtime — minimal image
 # =============================================================================
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 LABEL maintainer="InstaKindle Contributors"
 LABEL description="Fetch Instapaper articles, convert to ebooks, deliver to Kindle"
