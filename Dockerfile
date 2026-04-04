@@ -56,8 +56,19 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN useradd --create-home --shell /bin/bash appuser
 USER appuser
 
-# Healthcheck — verify the module can be imported
+# Healthcheck — verify the pipeline ran successfully recently.
+# The healthcheck file contains "<timestamp> <poll_interval>" written by the
+# pipeline, so the threshold adapts to the effective poll interval even when
+# set via CLI rather than the POLL_INTERVAL env var.
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
-    CMD python -c "import instakindle" || exit 1
+    CMD python -c "\
+import sys, time, pathlib; \
+p = pathlib.Path('/tmp/instakindle_last_success'); \
+parts = p.read_text().split() if p.exists() else []; \
+sys.exit(1) if not parts else None; \
+ts = float(parts[0]); \
+interval = int(parts[1]) if len(parts) > 1 else 900; \
+threshold = max(interval * 3, 1800); \
+sys.exit(0 if time.time() - ts < threshold else 1)" || exit 1
 
 ENTRYPOINT ["python", "-m", "instakindle"]

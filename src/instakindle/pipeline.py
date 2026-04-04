@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import tempfile
 import time
@@ -19,6 +20,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SENT_FOLDER = "InstaKindle"
+MAX_CONSECUTIVE_FAILURES = 10
+_MAX_BACKOFF_SECONDS = 3600  # 1 hour
+_MAX_BACKOFF_EXPONENT = 4
+HEALTHCHECK_FILE = Path("/tmp/instakindle_last_success")
+
+
+class PipelineIterationError(Exception):
+    """All articles in a pipeline iteration failed to process."""
+
+
+class PipelineShutdownError(Exception):
+    """Circuit breaker tripped after too many consecutive failures."""
 
 
 class Pipeline:
@@ -46,7 +59,12 @@ class Pipeline:
         )
 
     def run_forever(self) -> None:
-        """Run the pipeline in a continuous loop."""
+        """Run the pipeline in a continuous loop.
+
+        Uses exponential backoff on repeated failures and shuts down after
+        ``MAX_CONSECUTIVE_FAILURES`` consecutive errors to avoid wasting
+        resources on known-broken configurations.
+        """
         logger.info(
             "Starting InstaKindle pipeline (poll_interval=%ds)",
             self._config.poll_interval,
@@ -55,22 +73,63 @@ class Pipeline:
         # Authenticate once at startup
         self._client.authenticate()
 
+        consecutive_failures = 0
+
         while True:
             try:
                 self.run_once()
+                consecutive_failures = 0
+                _write_healthcheck(self._config.poll_interval)
+            except PipelineIterationError as exc:
+                consecutive_failures += 1
+                logger.warning(
+                    "Pipeline iteration failed — all articles failed (%d/%d): %s",
+                    consecutive_failures,
+                    MAX_CONSECUTIVE_FAILURES,
+                    exc,
+                )
             except InstapaperError:
-                logger.exception("Instapaper API error during pipeline run")
+                consecutive_failures += 1
+                logger.exception(
+                    "Instapaper API error (%d/%d)",
+                    consecutive_failures,
+                    MAX_CONSECUTIVE_FAILURES,
+                )
             except Exception:
-                logger.exception("Unexpected error during pipeline run")
+                consecutive_failures += 1
+                logger.exception(
+                    "Unexpected error (%d/%d)",
+                    consecutive_failures,
+                    MAX_CONSECUTIVE_FAILURES,
+                )
 
-            logger.info("Sleeping for %d seconds...", self._config.poll_interval)
-            time.sleep(self._config.poll_interval)
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                logger.critical(
+                    "Exceeded %d consecutive failures, shutting down",
+                    MAX_CONSECUTIVE_FAILURES,
+                )
+                raise PipelineShutdownError(consecutive_failures)
+
+            if consecutive_failures > 0:
+                backoff = self._config.poll_interval * (
+                    2 ** min(consecutive_failures, _MAX_BACKOFF_EXPONENT)
+                )
+                sleep_seconds = min(backoff, _MAX_BACKOFF_SECONDS)
+            else:
+                sleep_seconds = self._config.poll_interval
+            logger.info("Sleeping for %d seconds...", sleep_seconds)
+            time.sleep(sleep_seconds)
 
     def run_once(self) -> int:
         """Run a single iteration of the pipeline.
 
         Returns:
             Number of articles successfully processed.
+
+        Raises:
+            PipelineIterationError: If articles were found but none could be
+                processed successfully (e.g., persistent conversion or
+                sending failures).
         """
         articles = self._client.get_bookmarks()
 
@@ -86,6 +145,11 @@ class Pipeline:
                 success_count += 1
 
         logger.info("Processed %d/%d articles successfully", success_count, len(articles))
+
+        if success_count == 0:
+            msg = f"All {len(articles)} articles failed to process"
+            raise PipelineIterationError(msg)
+
         return success_count
 
     def _process_article(self, article: Article) -> bool:
@@ -142,3 +206,29 @@ class Pipeline:
                 logger.debug("Cleaned up temp directory: %s", directory)
         except OSError:
             logger.warning("Failed to clean up temp directory: %s", directory)
+
+
+def _write_healthcheck(poll_interval: int) -> None:
+    """Write current timestamp and poll interval to the healthcheck file.
+
+    The file contains ``<timestamp> <poll_interval>`` so the Docker
+    healthcheck can derive a staleness threshold from the effective
+    poll interval, even when it differs from the ``POLL_INTERVAL`` env var.
+
+    Uses atomic write (temp file + rename) so that concurrent readers
+    (e.g. Docker healthcheck) never see a partially written file.
+    """
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=HEALTHCHECK_FILE.parent, prefix=".hc_tmp_")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(f"{time.time()} {poll_interval}")
+            Path(tmp_path).rename(HEALTHCHECK_FILE)
+        except BaseException:
+            # fd is already closed by os.fdopen context manager (or was
+            # never wrapped if os.fdopen itself failed — but os.fdopen
+            # closes the fd on failure too).  Only clean up the temp file.
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
+    except OSError as exc:
+        logger.warning("Failed to write healthcheck file: %s (%s)", HEALTHCHECK_FILE, exc)
