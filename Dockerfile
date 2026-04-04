@@ -18,9 +18,9 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir -r requirements.lock
 
-# Copy source and install the package itself (no dependency resolution)
+# Copy source and install the package itself (no dependency or build isolation)
 COPY src/ src/
-RUN pip install --no-cache-dir --no-deps .
+RUN pip install --no-cache-dir --no-deps --no-build-isolation .
 
 # =============================================================================
 # Stage 2: Runtime — minimal image
