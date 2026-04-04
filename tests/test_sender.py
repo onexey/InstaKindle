@@ -103,9 +103,9 @@ class TestKindleSender:
 
             attachment = msg.get_payload()[1]
             content_disp = attachment["Content-Disposition"]
-            # The filename must be properly quoted (not bare/unquoted)
-            assert "filename" in content_disp
-            # Python's add_header with keyword args quotes filenames with spaces
-            assert "Why I'm Not Worried.epub" in content_disp
+            quoted_filename = 'filename="Why I\'m Not Worried.epub"'
+            # The filename must be serialized as a quoted string or an
+            # RFC 2231 encoded parameter, not as a bare unquoted value.
+            assert quoted_filename in content_disp or "filename*=" in content_disp
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
