@@ -6,7 +6,11 @@ import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from instakindle.converter.ebooklib_converter import EbooklibConverter, _guess_media_type
+from instakindle.converter.ebooklib_converter import (
+    EbooklibConverter,
+    _guess_media_type,
+    _sanitize_filename,
+)
 from instakindle.instapaper import Article
 
 
@@ -96,3 +100,39 @@ class TestGuessMediaType:
 
     def test_unknown(self) -> None:
         assert _guess_media_type(Path("image.bmp")) == "image/jpeg"
+
+
+class TestSanitizeFilename:
+    """Tests for _sanitize_filename helper."""
+
+    def test_ascii_apostrophe_replaced(self) -> None:
+        """Apostrophe in title should be replaced to avoid MIME/delivery issues."""
+        result = _sanitize_filename("Why I'm Not Worried")
+        assert "'" not in result
+        assert result == "Why I_m Not Worried"
+
+    def test_curly_apostrophe_replaced(self) -> None:
+        """Smart/curly apostrophe (\u2019) should be replaced."""
+        result = _sanitize_filename("Why I\u2019m Not Worried")
+        assert "\u2019" not in result
+        assert result == "Why I_m Not Worried"
+
+    def test_curly_quotes_replaced(self) -> None:
+        """Smart/curly double quotes should be replaced."""
+        result = _sanitize_filename("Say \u201cHello\u201d")
+        assert "\u201c" not in result
+        assert "\u201d" not in result
+        assert result == "Say _Hello_"
+
+    def test_original_characters_still_replaced(self) -> None:
+        """Original set of dangerous filename characters should still be replaced."""
+        result = _sanitize_filename('File: "name" <tag> | test?')
+        assert result == "File_ _name_ _tag_ _ test_"
+
+    def test_realistic_title_with_apostrophe(self) -> None:
+        """Regression test for the exact title from the reported issue."""
+        title = "Why I\u2019m Not Worried About Running Out of Work in the Age of AI"
+        result = _sanitize_filename(title)
+        assert "'" not in result
+        assert "\u2019" not in result
+        assert "I_m" in result

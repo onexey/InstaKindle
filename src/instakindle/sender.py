@@ -104,7 +104,8 @@ class KindleSender:
         encoders.encode_base64(attachment)
         attachment.add_header(
             "Content-Disposition",
-            f"attachment; filename={epub_path.name}",
+            "attachment",
+            filename=epub_path.name,
         )
         msg.attach(attachment)
 

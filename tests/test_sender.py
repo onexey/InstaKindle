@@ -86,3 +86,26 @@ class TestKindleSender:
             assert len(payloads) == 2
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
+
+    def test_build_message_quotes_filename(self) -> None:
+        """Content-Disposition filename should be properly quoted/encoded.
+
+        Regression test: titles with apostrophes produced malformed
+        Content-Disposition headers that caused silent delivery failures.
+        """
+        work_dir = Path(tempfile.mkdtemp(prefix="instakindle_test_"))
+        try:
+            epub_file = work_dir / "Why I'm Not Worried.epub"
+            epub_file.write_bytes(b"fake epub data")
+
+            sender = self._make_sender()
+            msg = sender._build_message(epub_file, "Why I'm Not Worried")
+
+            attachment = msg.get_payload()[1]
+            content_disp = attachment["Content-Disposition"]
+            quoted_filename = 'filename="Why I\'m Not Worried.epub"'
+            # The filename must be serialized as a quoted string or an
+            # RFC 2231 encoded parameter, not as a bare unquoted value.
+            assert quoted_filename in content_disp or "filename*=" in content_disp
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
