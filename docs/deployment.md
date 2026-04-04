@@ -94,51 +94,196 @@ App Passwords require 2-Step Verification to be enabled:
 docker build -t instakindle .
 ```
 
-### Multi-platform Build (for Docker Hub)
-
-```bash
-docker buildx create --use
-docker buildx build --platform linux/amd64,linux/arm64 -t youruser/instakindle:latest --push .
-```
-
 ## Publishing to Docker Hub
 
-### Manual Push
+This section walks you through publishing InstaKindle to Docker Hub from scratch — from creating an account to pushing your first image.
 
-1. **Log in to Docker Hub:**
+### 1. Create a Docker Hub Account
 
-   ```bash
-   docker login
-   ```
+1. Go to **https://hub.docker.com/signup**
+2. Sign up with your email, GitHub account, or Google account
+3. Verify your email address
+4. Note your **Docker Hub username** — you'll use it to tag and push images (referred to as `YOUR_USERNAME` throughout this guide)
 
-2. **Tag the image:**
+### 2. Create an Access Token
 
-   ```bash
-   docker tag instakindle youruser/instakindle:latest
-   docker tag instakindle youruser/instakindle:1.0.0
-   ```
+Access tokens are the recommended way to authenticate with Docker Hub from the CLI. Unlike passwords, tokens can be:
 
-3. **Push:**
+- **Revoked** individually without changing your password
+- **Scoped** to specific permissions (read-only, read/write)
+- **Required** if you have two-factor authentication (2FA) enabled
 
-   ```bash
-   docker push youruser/instakindle:latest
-   docker push youruser/instakindle:1.0.0
-   ```
+To create a token:
 
-### Automated Publishing (CI/CD)
+1. Go to **https://hub.docker.com/settings/security**
+2. Click **New Access Token**
+3. Enter a name (e.g. "InstaKindle CI")
+4. Select the permission scope: **Read & Write** (required for pushing images)
+5. Click **Generate** and **copy the token immediately** — it won't be shown again
 
-The repository includes a GitHub Actions workflow (`.github/workflows/docker-publish.yml`) that automatically builds and pushes the Docker image when a release is created.
+### 3. Log in from the CLI
 
-**Setup steps:**
+```bash
+docker login -u YOUR_USERNAME
+```
 
-1. Go to your repository's **Settings → Secrets and variables → Actions**
-2. Add the following secrets:
-   - `DOCKERHUB_USERNAME` — Your Docker Hub username
-   - `DOCKERHUB_TOKEN` — A Docker Hub [access token](https://docs.docker.com/docker-hub/access-tokens/)
+When prompted for a password, paste your **access token** (not your Docker Hub password).
 
-3. Create a new release on GitHub. The workflow will:
-   - Build images for `linux/amd64` and `linux/arm64`
-   - Push with semantic version tags (e.g., `1.0.0`, `1.0`, `1`, `latest`)
+You should see:
+
+```
+Login Succeeded
+```
+
+### 4. Create a Repository on Docker Hub
+
+1. Go to **https://hub.docker.com/repositories**
+2. Click **Create Repository**
+3. Set the name to `instakindle`
+4. Choose visibility: **Public** (anyone can pull) or **Private** (only you can access)
+5. Click **Create**
+
+This creates the repository `YOUR_USERNAME/instakindle`.
+
+### 5. Build the Image Locally
+
+From the root of the InstaKindle project directory:
+
+```bash
+docker build -t YOUR_USERNAME/instakindle:latest .
+```
+
+### 6. Tag with a Version
+
+```bash
+docker tag YOUR_USERNAME/instakindle:latest YOUR_USERNAME/instakindle:1.0.0
+```
+
+**Semantic versioning convention:** It's common to push multiple tags for the same image so users can pin to the level of specificity they want:
+
+| Tag | Meaning |
+|---|---|
+| `:latest` | Most recent build (mutable — moves with each push) |
+| `:1.0.0` | Exact version (immutable) |
+| `:1.0` | Latest patch in the 1.0.x line |
+| `:1` | Latest minor/patch in the 1.x.x line |
+
+### 7. Push to Docker Hub
+
+```bash
+docker push YOUR_USERNAME/instakindle:latest
+docker push YOUR_USERNAME/instakindle:1.0.0
+```
+
+Verify your image is published by visiting:
+
+```
+https://hub.docker.com/r/YOUR_USERNAME/instakindle/tags
+```
+
+### 8. Multi-platform Builds (Optional)
+
+By default, `docker build` creates an image only for your machine's architecture. If you want your image to run on multiple platforms (e.g. `amd64` servers **and** `arm64` devices like Raspberry Pi or Apple Silicon Macs), use Docker Buildx:
+
+```bash
+docker buildx create --name multiarch --use
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t YOUR_USERNAME/instakindle:latest \
+  -t YOUR_USERNAME/instakindle:1.0.0 \
+  --push .
+```
+
+> **Note:** The `--push` flag is required with multi-platform builds because the resulting image is pushed directly to the registry (it cannot be stored in the local Docker daemon).
+
+### 9. Automated Publishing via GitHub Actions
+
+The repository includes a GitHub Actions workflow (`.github/workflows/docker-publish.yml`) that automatically builds and pushes multi-platform Docker images when you create a release.
+
+#### Set up GitHub Secrets
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings → Secrets and variables → Actions**
+3. Click **New repository secret** and add:
+   - **Name:** `DOCKERHUB_USERNAME` — **Value:** Your Docker Hub username
+   - **Name:** `DOCKERHUB_TOKEN` — **Value:** The access token you created in [Step 2](#2-create-an-access-token)
+
+#### Workflow overview
+
+The workflow triggers on:
+
+- **Release published** — when you create a new release on GitHub
+- **Manual dispatch** — you can trigger it manually from the Actions tab
+
+Here is the full workflow YAML (`.github/workflows/docker-publish.yml`):
+
+```yaml
+name: Publish Docker Image
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Docker image tag (e.g., latest, 1.0.0)"
+        required: true
+        default: "latest"
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/instakindle
+
+jobs:
+  publish:
+    name: Build & Push to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+```
+
+#### How it works
+
+1. **Create a release** on GitHub with a semantic version tag (e.g. `v1.0.0`)
+2. The workflow automatically:
+   - Builds images for `linux/amd64` and `linux/arm64`
+   - Tags them with semantic version variants (`1.0.0`, `1.0`, `1`, `latest`)
+   - Pushes all tags to Docker Hub
+3. Verify the published tags at `https://hub.docker.com/r/YOUR_USERNAME/instakindle/tags`
 
 ## Running the Container
 
