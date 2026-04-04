@@ -6,7 +6,6 @@ import logging
 import tempfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,14 +16,6 @@ if TYPE_CHECKING:
     from instakindle.instapaper import Article
 
 logger = logging.getLogger(__name__)
-
-
-class ConverterType(Enum):
-    """Available ebook conversion engines."""
-
-    CALIBRE = "calibre"
-    PANDOC = "pandoc"
-    EBOOKLIB = "ebooklib"
 
 
 @dataclass
@@ -112,33 +103,3 @@ def _extension_from_content_type(content_type: str) -> str:
     # Handle content types with parameters (e.g., "image/jpeg; charset=utf-8")
     base_type = content_type.split(";")[0].strip().lower()
     return mapping.get(base_type, ".jpg")
-
-
-def get_converter(converter_type: str) -> Converter:
-    """Factory function to create a converter instance.
-
-    Args:
-        converter_type: One of "calibre", "pandoc", "ebooklib".
-
-    Returns:
-        A Converter instance.
-
-    Raises:
-        ValueError: If the converter type is unknown.
-    """
-    from instakindle.converter.calibre import CalibreConverter
-    from instakindle.converter.ebooklib_converter import EbooklibConverter
-    from instakindle.converter.pandoc import PandocConverter
-
-    converters: dict[str, type[Converter]] = {
-        "calibre": CalibreConverter,
-        "pandoc": PandocConverter,
-        "ebooklib": EbooklibConverter,
-    }
-
-    converter_cls = converters.get(converter_type.lower())
-    if converter_cls is None:
-        msg = f"Unknown converter type: {converter_type}"
-        raise ValueError(msg)
-
-    return converter_cls()

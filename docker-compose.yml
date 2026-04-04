@@ -19,4 +19,3 @@ services:
       SENDER_EMAIL: ${SENDER_EMAIL}
       POLL_INTERVAL: ${POLL_INTERVAL:-900}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CONVERTER: ${CONVERTER:-ebooklib}

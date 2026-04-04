@@ -82,9 +82,7 @@ InstaKindle/
 │       ├── sender.py              # SMTP email sender
 │       └── converter/
 │           ├── __init__.py        # Converter exports
-│           ├── base.py            # Abstract converter + factory + image downloader
-│           ├── calibre.py         # Calibre ebook-convert wrapper
-│           ├── pandoc.py          # Pandoc wrapper
+│           ├── base.py            # Abstract converter + image downloader
 │           └── ebooklib_converter.py  # Pure Python ebooklib converter
 ├── tests/
 │   ├── conftest.py                # Shared fixtures
@@ -95,8 +93,6 @@ InstaKindle/
 │   ├── test_sender.py
 │   └── test_converter/
 │       ├── test_base.py
-│       ├── test_calibre.py
-│       ├── test_pandoc.py
 │       └── test_ebooklib.py
 ├── docs/
 │   ├── deployment.md
@@ -128,19 +124,10 @@ CLI (cli.py)
 
 ### Key Design Decisions
 
-- **Strategy Pattern for converters**: All converters implement the abstract `Converter` base class. The factory function `get_converter()` returns the appropriate implementation based on config.
+- **EbookLib converter**: Articles are converted to EPUB using [ebooklib](https://github.com/aerkalov/ebooklib), a pure-Python library with zero system dependencies.
 - **Frozen dataclass for config**: Configuration is immutable once loaded, preventing accidental mutation.
 - **Graceful degradation**: Tagging failures are logged as warnings (not all Instapaper plans support tags). Individual article failures don't stop the pipeline.
 - **Temp directory cleanup**: Conversion artifacts are cleaned up after each article is processed.
-
-## Adding a New Converter
-
-1. Create a new file in `src/instakindle/converter/`
-2. Implement the `Converter` abstract base class
-3. Add the new converter to `get_converter()` in `base.py`
-4. Add the new converter to `converter/__init__.py`
-5. Add tests in `tests/test_converter/`
-6. Update the `Config.validate()` valid converters set
 
 ## Running Locally (without Docker)
 

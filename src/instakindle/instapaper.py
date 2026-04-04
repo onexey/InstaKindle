@@ -253,12 +253,15 @@ class InstapaperClient:
         # List existing folders
         folders = self._api_request("POST", "/folders/list")
         for item in folders:
-            if isinstance(item, dict) and item.get("type") == "folder":
-                if item.get("title") == title:
-                    folder_id = str(item["folder_id"])
-                    self._folder_cache[title] = folder_id
-                    logger.info("Found existing folder '%s' (id=%s)", title, folder_id)
-                    return folder_id
+            if (
+                isinstance(item, dict)
+                and item.get("type") == "folder"
+                and item.get("title") == title
+            ):
+                folder_id = str(item["folder_id"])
+                self._folder_cache[title] = folder_id
+                logger.info("Found existing folder '%s' (id=%s)", title, folder_id)
+                return folder_id
 
         # Create folder
         result = self._api_request("POST", "/folders/add", data={"title": title})

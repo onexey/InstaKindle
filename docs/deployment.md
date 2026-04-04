@@ -305,7 +305,6 @@ docker run -d \
   -e SENDER_EMAIL=you@gmail.com \
   -e POLL_INTERVAL=900 \
   -e LOG_LEVEL=info \
-  -e CONVERTER=ebooklib \
   instakindle
 ```
 
@@ -352,17 +351,6 @@ docker run -d \
 | `SENDER_EMAIL` | Yes | — | Email address to send from |
 | `POLL_INTERVAL` | No | `900` | Seconds between fetch cycles |
 | `LOG_LEVEL` | No | `info` | Logging level: debug, info, warn, error |
-| `CONVERTER` | No | `ebooklib` | Converter engine: ebooklib, calibre, pandoc |
-
-## Choosing a Converter
-
-| Converter | Docker Image Size | Dependencies | Best For |
-|---|---|---|---|
-| `ebooklib` | ~150 MB | None (pure Python) | Lightest option, good for most articles |
-| `pandoc` | ~250 MB | `pandoc` binary | More robust HTML handling |
-| `calibre` | ~650 MB+ | `calibre` + Qt/GUI libs | Best edge-case handling, heaviest |
-
-The default converter is `ebooklib`. To use a different converter, set the `CONVERTER` environment variable.
 
 ## Monitoring
 

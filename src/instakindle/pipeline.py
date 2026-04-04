@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from instakindle.converter.base import Converter, get_converter
+from instakindle.converter.ebooklib_converter import EbooklibConverter
 from instakindle.instapaper import Article, InstapaperClient, InstapaperError
 from instakindle.sender import KindleSender, SenderError
 
@@ -35,7 +35,7 @@ class Pipeline:
             username=config.instapaper_username,
             password=config.instapaper_password,
         )
-        self._converter: Converter = get_converter(config.converter)
+        self._converter = EbooklibConverter()
         self._sender = KindleSender(
             smtp_host=config.smtp_host,
             smtp_port=config.smtp_port,
@@ -48,8 +48,7 @@ class Pipeline:
     def run_forever(self) -> None:
         """Run the pipeline in a continuous loop."""
         logger.info(
-            "Starting InstaKindle pipeline (converter=%s, poll_interval=%ds)",
-            self._config.converter,
+            "Starting InstaKindle pipeline (poll_interval=%ds)",
             self._config.poll_interval,
         )
 
