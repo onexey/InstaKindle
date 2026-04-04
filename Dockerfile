@@ -7,7 +7,7 @@ WORKDIR /build
 
 # Install system dependencies for building Python packages
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc && \
+    apt-get install -y --no-install-recommends gcc libxml2-dev libxslt-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy only dependency specification files first for better layer caching
