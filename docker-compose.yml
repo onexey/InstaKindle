@@ -1,6 +1,6 @@
 services:
   instakindle:
-    image: instakindle
+    image: ghcr.io/onexey/instakindle
     build:
       context: .
       dockerfile: Dockerfile

@@ -5,7 +5,7 @@ This guide covers how to build, publish, and deploy InstaKindle as a Docker imag
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) installed
-- A [Docker Hub](https://hub.docker.com/) account (for publishing)
+- A [GitHub](https://github.com/) account (for publishing via GitHub Container Registry)
 - Instapaper API credentials (OAuth consumer key & secret) — see [Obtaining Instapaper API Credentials](#obtaining-instapaper-api-credentials)
 - SMTP credentials for sending emails — see [Setting Up Email (SMTP)](#setting-up-email-smtp)
 - Your Kindle Send-to-Kindle email address — see [Finding Your Kindle Email Address](#finding-your-kindle-email-address)
@@ -94,40 +94,25 @@ App Passwords require 2-Step Verification to be enabled:
 docker build -t instakindle .
 ```
 
-## Publishing to Docker Hub
+## Publishing to GitHub Container Registry
 
-This section walks you through publishing InstaKindle to Docker Hub from scratch — from creating an account to pushing your first image.
+This section walks you through publishing InstaKindle to [GitHub Container Registry (ghcr.io)](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) — from authenticating to pushing your first image.
 
-### 1. Create a Docker Hub Account
+GHCR is GitHub's built-in container registry. Images are stored alongside your code, authentication uses your existing GitHub credentials, and there are no pull rate limits for public images.
 
-1. Go to **https://hub.docker.com/signup**
-2. Sign up with your email, GitHub account, or Google account
-3. Verify your email address
-4. Note your **Docker Hub username** — you'll use it to tag and push images (referred to as `YOUR_USERNAME` throughout this guide)
+### 1. Create a Personal Access Token (PAT)
 
-### 2. Create an Access Token
+To push images from the CLI, you need a GitHub Personal Access Token with the `write:packages` scope:
 
-Access tokens are the recommended way to authenticate with Docker Hub from the CLI. Unlike passwords, tokens can be:
+1. Go to **https://github.com/settings/tokens?type=beta** (fine-grained tokens) or **https://github.com/settings/tokens/new** (classic tokens)
+2. For a **classic token**, select the `write:packages` and `read:packages` scopes
+3. Click **Generate token** and **copy it immediately** — it won't be shown again
 
-- **Revoked** individually without changing your password
-- **Scoped** to specific permissions (read-only, read/write)
-- **Required** if you have two-factor authentication (2FA) enabled
-
-To create a token:
-
-1. Go to **https://hub.docker.com/settings/security**
-2. Click **New Access Token**
-3. Enter a name (e.g. "InstaKindle CI")
-4. Select the permission scope: **Read & Write** (required for pushing images)
-5. Click **Generate** and **copy the token immediately** — it won't be shown again
-
-### 3. Log in from the CLI
+### 2. Log in from the CLI
 
 ```bash
-docker login -u YOUR_USERNAME
+echo YOUR_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
 ```
-
-When prompted for a password, paste your **access token** (not your Docker Hub password).
 
 You should see:
 
@@ -135,28 +120,18 @@ You should see:
 Login Succeeded
 ```
 
-### 4. Create a Repository on Docker Hub
-
-1. Go to **https://hub.docker.com/repositories**
-2. Click **Create Repository**
-3. Set the name to `instakindle`
-4. Choose visibility: **Public** (anyone can pull) or **Private** (only you can access)
-5. Click **Create**
-
-This creates the repository `YOUR_USERNAME/instakindle`.
-
-### 5. Build the Image Locally
+### 3. Build the Image Locally
 
 From the root of the InstaKindle project directory:
 
 ```bash
-docker build -t YOUR_USERNAME/instakindle:latest .
+docker build -t ghcr.io/YOUR_GITHUB_USERNAME/instakindle:latest .
 ```
 
-### 6. Tag with a Version
+### 4. Tag with a Version
 
 ```bash
-docker tag YOUR_USERNAME/instakindle:latest YOUR_USERNAME/instakindle:1.0.0
+docker tag ghcr.io/YOUR_GITHUB_USERNAME/instakindle:latest ghcr.io/YOUR_GITHUB_USERNAME/instakindle:1.0.0
 ```
 
 **Semantic versioning convention:** It's common to push multiple tags for the same image so users can pin to the level of specificity they want:
@@ -168,44 +143,36 @@ docker tag YOUR_USERNAME/instakindle:latest YOUR_USERNAME/instakindle:1.0.0
 | `:1.0` | Latest patch in the 1.0.x line |
 | `:1` | Latest minor/patch in the 1.x.x line |
 
-### 7. Push to Docker Hub
+### 5. Push to GHCR
 
 ```bash
-docker push YOUR_USERNAME/instakindle:latest
-docker push YOUR_USERNAME/instakindle:1.0.0
+docker push ghcr.io/YOUR_GITHUB_USERNAME/instakindle:latest
+docker push ghcr.io/YOUR_GITHUB_USERNAME/instakindle:1.0.0
 ```
 
-Verify your image is published by visiting:
+The repository is auto-created on first push. Verify the published image in your repo's **Packages** tab on GitHub.
 
-```
-https://hub.docker.com/r/YOUR_USERNAME/instakindle/tags
-```
+> **Note:** By default, newly pushed packages inherit the repository's visibility. You can change visibility in **Package settings** on GitHub.
 
-### 8. Multi-platform Builds (Optional)
+### 6. Multi-platform Builds (Optional)
 
 By default, `docker build` creates an image only for your machine's architecture. If you want your image to run on multiple platforms (e.g. `amd64` servers **and** `arm64` devices like Raspberry Pi or Apple Silicon Macs), use Docker Buildx:
 
 ```bash
 docker buildx create --name multiarch --use
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -t YOUR_USERNAME/instakindle:latest \
-  -t YOUR_USERNAME/instakindle:1.0.0 \
+  -t ghcr.io/YOUR_GITHUB_USERNAME/instakindle:latest \
+  -t ghcr.io/YOUR_GITHUB_USERNAME/instakindle:1.0.0 \
   --push .
 ```
 
 > **Note:** The `--push` flag is required with multi-platform builds because the resulting image is pushed directly to the registry (it cannot be stored in the local Docker daemon).
 
-### 9. Automated Publishing via GitHub Actions
+### 7. Automated Publishing via GitHub Actions
 
 The repository includes a GitHub Actions workflow (`.github/workflows/docker-publish.yml`) that automatically builds and pushes multi-platform Docker images when you create a release.
 
-#### Set up GitHub Secrets
-
-1. Go to your repository on GitHub
-2. Navigate to **Settings → Secrets and variables → Actions**
-3. Click **New repository secret** and add:
-   - **Name:** `DOCKERHUB_USERNAME` — **Value:** Your Docker Hub username
-   - **Name:** `DOCKERHUB_TOKEN` — **Value:** The access token you created in [Step 2](#2-create-an-access-token)
+**No secrets to configure** — the workflow uses the automatic `GITHUB_TOKEN` provided by GitHub Actions, which has `packages:write` permission.
 
 #### Workflow overview
 
@@ -231,14 +198,15 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/instakindle
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   publish:
-    name: Build & Push to Docker Hub
+    name: Build & Push to GHCR
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -246,11 +214,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -282,8 +251,8 @@ jobs:
 2. The workflow automatically:
    - Builds images for `linux/amd64` and `linux/arm64`
    - Tags them with semantic version variants (`1.0.0`, `1.0`, `1`, `latest`)
-   - Pushes all tags to Docker Hub
-3. Verify the published tags at `https://hub.docker.com/r/YOUR_USERNAME/instakindle/tags`
+   - Pushes all tags to GitHub Container Registry
+3. Verify the published image in your repo's **Packages** tab on GitHub
 
 ## Running the Container
 
@@ -305,7 +274,7 @@ docker run -d \
   -e SENDER_EMAIL=you@gmail.com \
   -e POLL_INTERVAL=900 \
   -e LOG_LEVEL=info \
-  instakindle
+  ghcr.io/onexey/instakindle
 ```
 
 ### Using Docker Compose

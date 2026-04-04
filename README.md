@@ -56,7 +56,7 @@ docker run -d \
   -e SMTP_USERNAME=you@gmail.com \
   -e SMTP_PASSWORD=your_app_password \
   -e SENDER_EMAIL=you@gmail.com \
-  instakindle
+  ghcr.io/onexey/instakindle
 ```
 
 ## Docker Compose
@@ -64,7 +64,7 @@ docker run -d \
 ```yaml
 services:
   instakindle:
-    image: instakindle
+    image: ghcr.io/onexey/instakindle
     container_name: instakindle
     restart: unless-stopped
     environment:
