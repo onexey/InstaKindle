@@ -10,15 +10,17 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy only dependency files first for better layer caching
+# Copy only dependency specification files first for better layer caching
 COPY pyproject.toml requirements.lock ./
-COPY src/ src/
 
-# Install the package and its dependencies into a virtual env
+# Install pinned dependencies into a virtual env
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir -r requirements.lock && \
-    pip install --no-cache-dir --no-deps .
+RUN pip install --no-cache-dir -r requirements.lock
+
+# Copy source and install the package itself (no dependency resolution)
+COPY src/ src/
+RUN pip install --no-cache-dir --no-deps .
 
 # =============================================================================
 # Stage 2: Runtime — minimal image
