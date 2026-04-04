@@ -8,7 +8,10 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
+
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +128,11 @@ class Config:
 def load_config(cli_overrides: dict[str, Any] | None = None) -> Config:
     """Load configuration from environment variables with optional CLI overrides.
 
-    Priority: CLI arguments > environment variables > defaults.
+    Priority: CLI arguments > environment variables > .env file > defaults.
     """
+    # Load .env file (does not override already-set env vars)
+    load_dotenv(Path.cwd() / ".env")
+
     kwargs: dict[str, Any] = {}
 
     # Load from environment

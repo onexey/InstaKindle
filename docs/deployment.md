@@ -6,9 +6,85 @@ This guide covers how to build, publish, and deploy InstaKindle as a Docker imag
 
 - [Docker](https://docs.docker.com/get-docker/) installed
 - A [Docker Hub](https://hub.docker.com/) account (for publishing)
-- Instapaper API credentials (OAuth consumer key & secret)
-- SMTP credentials for sending emails
-- Your Kindle Send-to-Kindle email address
+- Instapaper API credentials (OAuth consumer key & secret) — see [Obtaining Instapaper API Credentials](#obtaining-instapaper-api-credentials)
+- SMTP credentials for sending emails — see [Setting Up Email (SMTP)](#setting-up-email-smtp)
+- Your Kindle Send-to-Kindle email address — see [Finding Your Kindle Email Address](#finding-your-kindle-email-address)
+
+## Obtaining Instapaper API Credentials
+
+InstaKindle uses the Instapaper Full API with OAuth 1.0a (xAuth) to fetch your bookmarks. You need a **consumer key** and **consumer secret** to authenticate.
+
+> **Note:** The Instapaper Full API requires an Instapaper Premium (subscription) account.
+
+1. Log in to your Instapaper account
+2. Go to **https://www.instapaper.com/developers/applications/create**
+3. Fill out the short form describing your use case (e.g. "Personal tool to send articles to Kindle")
+4. Instapaper will provide you with a **Consumer Key** and **Consumer Secret**
+5. Set these values in your `.env` file:
+
+   ```dotenv
+   INSTAPAPER_KEY=your_consumer_key
+   INSTAPAPER_SECRET=your_consumer_secret
+   ```
+
+## Finding Your Kindle Email Address
+
+Amazon assigns each Kindle device (and the Kindle app) a unique Send-to-Kindle email address. InstaKindle sends converted ebooks to this address.
+
+1. Go to [Amazon – Manage Your Content and Devices](https://www.amazon.com/mn/dcw/myx.html)
+2. Click the **Devices** tab
+3. Select your Kindle device (or the Kindle app you use)
+4. Your Send-to-Kindle email is shown — it looks like `something@kindle.com`
+5. Set it in your `.env` file:
+
+   ```dotenv
+   KINDLE_EMAIL=your_username@kindle.com
+   ```
+
+### Approve the Sender Email
+
+Amazon only delivers documents from approved sender addresses. You must add the email address InstaKindle will send from:
+
+1. Go to [Amazon – Manage Your Content and Devices → Preferences](https://www.amazon.com/hz/mycd/myx#/home/settings/)
+2. Scroll down to **Personal Document Settings**
+3. Under **Approved Personal Document E-mail List**, click **Add a new approved e-mail address**
+4. Enter the email address you will use as `SENDER_EMAIL` (e.g. your Gmail address)
+
+## Setting Up Email (SMTP)
+
+InstaKindle needs an SMTP server to send ebooks to your Kindle. **Gmail with an App Password** is the easiest option and works well with Docker/server deployments.
+
+### Gmail Setup
+
+Gmail provides free, standard SMTP access — no extra apps required.
+
+#### Create a Gmail Account (skip if you already have one)
+
+1. Go to **https://accounts.google.com/signup** and create an account
+2. You now have a `yourname@gmail.com` address
+
+#### Enable 2-Step Verification
+
+App Passwords require 2-Step Verification to be enabled:
+
+1. Go to [Google Account → Security](https://myaccount.google.com/security)
+2. Under **How you sign in to Google**, click **2-Step Verification**
+3. Follow the prompts to enable it
+
+#### Create an App Password
+
+1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords)
+2. Enter a name (e.g. "InstaKindle") and click **Create**
+3. Google will display a 16-character password — copy it immediately (you won't see it again)
+4. Set these values in your `.env` file:
+
+   ```dotenv
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USERNAME=yourname@gmail.com
+   SMTP_PASSWORD=abcd efgh ijkl mnop
+   SENDER_EMAIL=yourname@gmail.com
+   ```
 
 ## Building the Docker Image
 
