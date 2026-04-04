@@ -101,6 +101,8 @@ class Pipeline:
         try:
             # Step 1: Fetch HTML
             html = self._client.get_article_html(article.bookmark_id)
+            logger.debug("Fetched HTML snippet: %s", html)
+            
             if not html:
                 logger.warning("Empty HTML for article '%s', skipping", article.title)
                 return False
