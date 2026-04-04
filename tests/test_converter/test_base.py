@@ -7,28 +7,15 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from instakindle.converter.base import (
     ConversionResult,
     Converter,
-    ConverterType,
     _extension_from_content_type,
-    get_converter,
 )
 
 
 def _make_tmp_dir() -> Path:
     return Path(tempfile.mkdtemp(prefix="instakindle_test_"))
-
-
-class TestConverterType:
-    """Tests for the ConverterType enum."""
-
-    def test_values(self) -> None:
-        assert ConverterType.CALIBRE.value == "calibre"
-        assert ConverterType.PANDOC.value == "pandoc"
-        assert ConverterType.EBOOKLIB.value == "ebooklib"
 
 
 class TestConversionResult:
@@ -135,33 +122,3 @@ class TestDownloadImages:
             assert len(image_map) == 0
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
-
-
-class TestGetConverter:
-    """Tests for the get_converter factory function."""
-
-    def test_get_ebooklib(self) -> None:
-        from instakindle.converter.ebooklib_converter import EbooklibConverter
-
-        converter = get_converter("ebooklib")
-        assert isinstance(converter, EbooklibConverter)
-
-    def test_get_calibre(self) -> None:
-        from instakindle.converter.calibre import CalibreConverter
-
-        converter = get_converter("calibre")
-        assert isinstance(converter, CalibreConverter)
-
-    def test_get_pandoc(self) -> None:
-        from instakindle.converter.pandoc import PandocConverter
-
-        converter = get_converter("pandoc")
-        assert isinstance(converter, PandocConverter)
-
-    def test_case_insensitive(self) -> None:
-        converter = get_converter("EbookLib")
-        assert converter is not None
-
-    def test_unknown_raises(self) -> None:
-        with pytest.raises(ValueError, match="Unknown converter"):
-            get_converter("nonexistent")

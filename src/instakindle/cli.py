@@ -52,12 +52,6 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["debug", "info", "warn", "error"],
         help="Logging verbosity (default: info)",
     )
-    parser.add_argument(
-        "--converter",
-        choices=["calibre", "pandoc", "ebooklib"],
-        help="Ebook conversion engine (default: ebooklib)",
-    )
-
     return parser
 
 

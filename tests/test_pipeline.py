@@ -19,12 +19,12 @@ class TestPipeline:
     """Tests for the Pipeline orchestrator."""
 
     @patch("instakindle.pipeline.KindleSender")
-    @patch("instakindle.pipeline.get_converter")
+    @patch("instakindle.pipeline.EbooklibConverter")
     @patch("instakindle.pipeline.InstapaperClient")
     def test_run_once_no_articles(
         self,
         mock_client_cls: MagicMock,
-        mock_get_converter: MagicMock,
+        mock_converter_cls: MagicMock,
         mock_sender_cls: MagicMock,
         sample_config: Config,
     ) -> None:
@@ -39,12 +39,12 @@ class TestPipeline:
         mock_client.get_bookmarks.assert_called_once()
 
     @patch("instakindle.pipeline.KindleSender")
-    @patch("instakindle.pipeline.get_converter")
+    @patch("instakindle.pipeline.EbooklibConverter")
     @patch("instakindle.pipeline.InstapaperClient")
     def test_run_once_processes_articles(
         self,
         mock_client_cls: MagicMock,
-        mock_get_converter: MagicMock,
+        mock_converter_cls: MagicMock,
         mock_sender_cls: MagicMock,
         sample_config: Config,
         sample_article: Article,
@@ -55,7 +55,7 @@ class TestPipeline:
         mock_client.get_article_html.return_value = "<p>Content</p>"
         mock_client.get_or_create_folder.return_value = "42"
 
-        mock_converter = mock_get_converter.return_value
+        mock_converter = mock_converter_cls.return_value
         mock_converter.convert.return_value = ConversionResult(
             epub_path=Path("/tmp/test.epub"),
             title=sample_article.title,
@@ -75,12 +75,12 @@ class TestPipeline:
         mock_client.move_bookmark.assert_called_once_with(sample_article.bookmark_id, "42")
 
     @patch("instakindle.pipeline.KindleSender")
-    @patch("instakindle.pipeline.get_converter")
+    @patch("instakindle.pipeline.EbooklibConverter")
     @patch("instakindle.pipeline.InstapaperClient")
     def test_run_once_conversion_failure(
         self,
         mock_client_cls: MagicMock,
-        mock_get_converter: MagicMock,
+        mock_converter_cls: MagicMock,
         mock_sender_cls: MagicMock,
         sample_config: Config,
         sample_article: Article,
@@ -90,7 +90,7 @@ class TestPipeline:
         mock_client.get_bookmarks.return_value = [sample_article]
         mock_client.get_article_html.return_value = "<p>Content</p>"
 
-        mock_converter = mock_get_converter.return_value
+        mock_converter = mock_converter_cls.return_value
         mock_converter.convert.return_value = ConversionResult(
             epub_path=Path("/tmp/test.epub"),
             title=sample_article.title,
@@ -108,12 +108,12 @@ class TestPipeline:
         mock_client.move_bookmark.assert_not_called()
 
     @patch("instakindle.pipeline.KindleSender")
-    @patch("instakindle.pipeline.get_converter")
+    @patch("instakindle.pipeline.EbooklibConverter")
     @patch("instakindle.pipeline.InstapaperClient")
     def test_run_once_empty_html(
         self,
         mock_client_cls: MagicMock,
-        mock_get_converter: MagicMock,
+        mock_converter_cls: MagicMock,
         mock_sender_cls: MagicMock,
         sample_config: Config,
         sample_article: Article,
@@ -123,7 +123,7 @@ class TestPipeline:
         mock_client.get_bookmarks.return_value = [sample_article]
         mock_client.get_article_html.return_value = ""
 
-        mock_converter = mock_get_converter.return_value
+        mock_converter = mock_converter_cls.return_value
 
         pipeline = Pipeline(sample_config)
         count = pipeline.run_once()
@@ -132,12 +132,12 @@ class TestPipeline:
         mock_converter.convert.assert_not_called()
 
     @patch("instakindle.pipeline.KindleSender")
-    @patch("instakindle.pipeline.get_converter")
+    @patch("instakindle.pipeline.EbooklibConverter")
     @patch("instakindle.pipeline.InstapaperClient")
     def test_run_once_send_failure(
         self,
         mock_client_cls: MagicMock,
-        mock_get_converter: MagicMock,
+        mock_converter_cls: MagicMock,
         mock_sender_cls: MagicMock,
         sample_config: Config,
         sample_article: Article,
@@ -147,7 +147,7 @@ class TestPipeline:
         mock_client.get_bookmarks.return_value = [sample_article]
         mock_client.get_article_html.return_value = "<p>Content</p>"
 
-        mock_converter = mock_get_converter.return_value
+        mock_converter = mock_converter_cls.return_value
         mock_converter.convert.return_value = ConversionResult(
             epub_path=Path("/tmp/test.epub"),
             title=sample_article.title,
@@ -164,12 +164,12 @@ class TestPipeline:
         mock_client.move_bookmark.assert_not_called()
 
     @patch("instakindle.pipeline.KindleSender")
-    @patch("instakindle.pipeline.get_converter")
+    @patch("instakindle.pipeline.EbooklibConverter")
     @patch("instakindle.pipeline.InstapaperClient")
     def test_run_once_multiple_articles_partial_failure(
         self,
         mock_client_cls: MagicMock,
-        mock_get_converter: MagicMock,
+        mock_converter_cls: MagicMock,
         mock_sender_cls: MagicMock,
         sample_config: Config,
     ) -> None:
@@ -185,7 +185,7 @@ class TestPipeline:
         ]
         mock_client.get_or_create_folder.return_value = "42"
 
-        mock_converter = mock_get_converter.return_value
+        mock_converter = mock_converter_cls.return_value
         mock_converter.convert.return_value = ConversionResult(
             epub_path=Path("/tmp/test.epub"),
             title="Article 2",

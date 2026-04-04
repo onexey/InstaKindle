@@ -70,7 +70,6 @@ def sample_config() -> Config:
         sender_email="sender@example.com",
         poll_interval=60,
         log_level="info",
-        converter="ebooklib",
     )
 
 

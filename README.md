@@ -84,31 +84,21 @@ services:
 
 ## How Ebook Conversion Works
 
-Articles are fetched as HTML from Instapaper and converted to EPUB. The resulting EPUB is sent directly to Kindle via email (Amazon converts EPUB to Kindle format on receipt).
+Articles are fetched as HTML from Instapaper and converted to EPUB using [ebooklib](https://github.com/aerkalov/ebooklib), a pure-Python library with zero system dependencies. The resulting EPUB is sent directly to Kindle via email (Amazon converts EPUB to Kindle format on receipt).
 
-The conversion must handle:
+The conversion handles:
 
 - **Images** — Downloaded and embedded inline in the ebook
 - **Code blocks** — Preserved with monospace formatting and syntax structure
 - **Typography** — Clean, readable formatting suitable for e-ink displays
 - **Metadata** — Title, author, and source URL are set in the ebook metadata
 
-### Conversion Engine Options
-
-> **Note:** The final choice will be made after comparing output quality across all three options. For now, the codebase will be structured so the conversion engine is swappable.
-
-| Option | Install | Image Size Impact | Pros | Cons |
-|---|---|---|---|---|
-| **[Calibre](https://calibre-ebook.com/) `ebook-convert`** | `apt install calibre` | ~500MB+ (pulls Qt, GUI libs) | Battle-tested, handles edge cases well | Very heavy; bloats the Docker image significantly |
-| **[Pandoc](https://pandoc.org/)** | `apt install pandoc` or static binary | ~100MB | Proven CLI tool, solid HTML→EPUB, lighter than Calibre | Still a non-trivial system dependency |
-| **[ebooklib](https://github.com/aerkalov/ebooklib)** | `pip install ebooklib` | Negligible (pure Python) | Zero system deps, full control over output, lightest option | We build EPUB programmatically; more code to write and maintain |
-
 ## Architecture
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌───────────┐     ┌────────┐
 │  Instapaper  │────▶│  InstaKindle │────▶│ Converter │────▶│ Kindle │
-│     API      │◀────│   (Python)   │     │ (TBD)     │     │ (SMTP) │
+│     API      │◀────│   (Python)   │     │ (ebooklib)│     │ (SMTP) │
 │              │ tag │              │     │           │     │        │
 │              │+arch│              │     │           │     │        │
 └─────────────┘     └──────────────┘     └───────────┘     └────────┘
@@ -116,7 +106,7 @@ The conversion must handle:
 
 - **Language**: Python
 - **Base image**: `python:3.13-slim`
-- **Ebook conversion**: TBD — see [Conversion Engine Options](#conversion-engine-options)
+- **Ebook conversion**: [ebooklib](https://github.com/aerkalov/ebooklib) (pure Python)
 - **Email delivery**: Python `smtplib` (SMTP with TLS)
 
 ## Building

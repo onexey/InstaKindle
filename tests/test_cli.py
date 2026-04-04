@@ -43,13 +43,10 @@ class TestBuildParser:
                 "300",
                 "--log-level",
                 "debug",
-                "--converter",
-                "pandoc",
             ]
         )
         assert args.instapaper_key == "key"
         assert args.smtp_port == 465
-        assert args.converter == "pandoc"
 
     def test_parser_defaults(self) -> None:
         parser = build_parser()

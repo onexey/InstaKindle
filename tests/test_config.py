@@ -20,7 +20,6 @@ class TestConfig:
         assert config.smtp_port == 587
         assert config.poll_interval == 900
         assert config.log_level == "info"
-        assert config.converter == "ebooklib"
 
     def test_validate_missing_required(self) -> None:
         """Validation should report missing required fields."""
@@ -45,17 +44,6 @@ class TestConfig:
         )
         errors = config.validate()
         assert any("port" in e.lower() for e in errors)
-
-    def test_validate_invalid_converter(self, sample_config: Config) -> None:
-        """Validation should catch invalid converter names."""
-        config = Config(
-            **{
-                **{k: v for k, v in vars(sample_config).items() if not k.startswith("_")},
-                "converter": "nonexistent",
-            }
-        )
-        errors = config.validate()
-        assert any("converter" in e.lower() for e in errors)
 
     def test_validate_invalid_log_level(self, sample_config: Config) -> None:
         """Validation should catch invalid log levels."""
@@ -154,10 +142,3 @@ class TestLoadConfig:
             config = load_config()
         assert config.smtp_port == 2525
         assert config.poll_interval == 300
-
-    def test_converter_env_var(self) -> None:
-        """CONVERTER env var should set the converter field."""
-        env = {"CONVERTER": "pandoc"}
-        with patch.dict(os.environ, env, clear=False):
-            config = load_config()
-        assert config.converter == "pandoc"

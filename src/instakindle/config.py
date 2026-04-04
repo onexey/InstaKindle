@@ -29,7 +29,6 @@ _ENV_MAP: dict[str, str] = {
     "SENDER_EMAIL": "sender_email",
     "POLL_INTERVAL": "poll_interval",
     "LOG_LEVEL": "log_level",
-    "CONVERTER": "converter",
 }
 
 
@@ -60,9 +59,6 @@ class Config:
     # Polling & runtime
     poll_interval: int = 900
     log_level: str = "info"
-
-    # Converter engine: "calibre", "pandoc", or "ebooklib"
-    converter: str = "ebooklib"
 
     # Required fields that must be non-empty
     _required_fields: tuple[str, ...] = field(
@@ -98,12 +94,6 @@ class Config:
 
         if self.poll_interval < 1:
             errors.append(f"Invalid poll interval: {self.poll_interval}")
-
-        valid_converters = {"calibre", "pandoc", "ebooklib"}
-        if self.converter not in valid_converters:
-            errors.append(
-                f"Invalid converter '{self.converter}'. Must be one of: {valid_converters}"
-            )
 
         valid_levels = {"debug", "info", "warn", "warning", "error", "critical"}
         if self.log_level.lower() not in valid_levels:
