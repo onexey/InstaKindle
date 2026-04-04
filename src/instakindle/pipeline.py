@@ -79,12 +79,13 @@ class Pipeline:
                 self.run_once()
                 consecutive_failures = 0
                 _write_healthcheck(self._config.poll_interval)
-            except PipelineIterationError:
+            except PipelineIterationError as exc:
                 consecutive_failures += 1
                 logger.warning(
-                    "Pipeline iteration failed — all articles failed (%d/%d)",
+                    "Pipeline iteration failed — all articles failed (%d/%d): %s",
                     consecutive_failures,
                     MAX_CONSECUTIVE_FAILURES,
+                    exc,
                 )
             except InstapaperError:
                 consecutive_failures += 1
