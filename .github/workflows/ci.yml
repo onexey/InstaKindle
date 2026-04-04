@@ -26,7 +26,7 @@ jobs:
 
       - name: Check lock file is up to date
         run: |
-          pip-compile pyproject.toml --strip-extras --allow-unsafe --output-file=requirements.lock
+          pip-compile --allow-unsafe --output-file=requirements.lock --strip-extras pyproject.toml
           git diff --exit-code requirements.lock
 
   lint:
