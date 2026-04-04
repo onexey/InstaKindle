@@ -18,7 +18,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install build dependencies required by pyproject.toml [build-system]
-RUN pip install --no-cache-dir "setuptools>=68.0" wheel
+RUN pip install --no-cache-dir setuptools==68.2.2 wheel==0.45.1
 
 RUN pip install --no-cache-dir -r requirements.lock
 
