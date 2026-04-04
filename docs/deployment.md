@@ -225,17 +225,16 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Docker image tag (e.g., latest, v1.0.0)"
+        description: "Docker image tag (e.g., latest, 1.0.0)"
         required: true
         default: "latest"
 
 permissions:
   contents: read
-  packages: write
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/instakindle
 
 jobs:
   publish:
@@ -262,7 +261,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push Docker image
