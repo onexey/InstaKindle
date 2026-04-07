@@ -121,14 +121,14 @@ CLI (cli.py)
               ├─> InstapaperClient (instapaper.py) — fetch articles
               ├─> Converter (converter/) — HTML → EPUB
               ├─> KindleSender (sender.py) — SMTP delivery
-              └─> InstapaperClient — tag + archive
+              └─> InstapaperClient — move to folder
 ```
 
 ### Key Design Decisions
 
 - **EbookLib converter**: Articles are converted to EPUB using [ebooklib](https://github.com/aerkalov/ebooklib), a pure-Python library with zero system dependencies.
 - **Frozen dataclass for config**: Configuration is immutable once loaded, preventing accidental mutation.
-- **Graceful degradation**: Tagging failures are logged as warnings (not all Instapaper plans support tags). Individual article failures don't stop the pipeline.
+- **Graceful degradation**: Individual article failures don't stop the pipeline. Each article is processed independently, and errors are logged so the loop continues with the next article.
 - **Temp directory cleanup**: Conversion artifacts are cleaned up after each article is processed.
 - **Retry on transient failures**: All network-bound operations use retry with exponential backoff (see below).
 

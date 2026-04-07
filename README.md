@@ -15,9 +15,8 @@ InstaKindle runs a simple loop:
 1. **Fetch** — Connects to the Instapaper API and retrieves all unread articles
 2. **Convert** — Transforms each article into a properly formatted EPUB/MOBI ebook, preserving images, code blocks, and formatting
 3. **Send** — Delivers the ebook to your Kindle via Amazon's Send-to-Kindle email service
-4. **Tag** — Applies a `sent-to-kindle` tag to the article in Instapaper (if supported by the API)
-5. **Archive** — Archives the article in Instapaper
-6. **Repeat** — Waits for a configurable interval, then starts again
+4. **Move** — Moves the article to an "InstaKindle" folder in Instapaper (removing it from your unread list)
+5. **Repeat** — Waits for a configurable interval, then starts again
 
 ## Features
 
@@ -25,7 +24,7 @@ InstaKindle runs a simple loop:
 - **Lightweight Docker image** — Multi-stage build, minimal base image, small footprint
 - **Configurable via environment variables** — No config files to mount; pass everything through env vars or CLI arguments
 - **Continuous operation** — Runs as a long-lived container, polling on a configurable interval
-- **Idempotent** — Already-processed articles are tagged and archived, so they won't be sent twice
+- **Idempotent** — Already-processed articles are moved to an "InstaKindle" folder, so they won't be sent twice
 
 ## Configuration
 
