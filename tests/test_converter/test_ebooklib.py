@@ -140,12 +140,10 @@ class TestSanitizeFilename:
     def test_em_dash_is_normalized_to_ascii_hyphen(self) -> None:
         """Unicode dash punctuation should not force RFC2231 attachment filenames."""
         title = (
-            "Identifying Necessary Transparency Moments In Agentic AI "
-            "(Part 1) — Smashing Magazine"
+            "Identifying Necessary Transparency Moments In Agentic AI (Part 1) — Smashing Magazine"
         )
         result = _sanitize_filename(title)
         assert result == (
-            "Identifying Necessary Transparency Moments In Agentic AI "
-            "(Part 1) - Smashing Magazine"
+            "Identifying Necessary Transparency Moments In Agentic AI (Part 1) - Smashing Magazine"
         )
         assert all(ord(char) < 128 for char in result)

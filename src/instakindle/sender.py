@@ -103,7 +103,9 @@ class KindleSender:
             attachment.set_payload(f.read())
 
         encoders.encode_base64(attachment)
-        attachment_stem = _sanitize_filename(title) or _sanitize_filename(epub_path.stem) or "document"
+        attachment_stem = _sanitize_filename(title)
+        if not attachment_stem:
+            attachment_stem = _sanitize_filename(epub_path.stem) or "document"
         attachment.add_header(
             "Content-Disposition",
             "attachment",

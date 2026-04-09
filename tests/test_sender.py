@@ -103,6 +103,7 @@ class TestKindleSender:
 
             attachment = msg.get_payload()[1]
             content_disp = attachment["Content-Disposition"]
+            assert msg["Subject"] == "Why I'm Not Worried"
             assert 'filename="Why I_m Not Worried.epub"' in content_disp
             assert "filename*=" not in content_disp
         finally:
@@ -112,7 +113,10 @@ class TestKindleSender:
         """Attachment filename should avoid RFC2231 encoding for Unicode punctuation."""
         work_dir = Path(tempfile.mkdtemp(prefix="instakindle_test_"))
         try:
-            title = "Identifying Necessary Transparency Moments In Agentic AI (Part 1) — Smashing Magazine"
+            title = (
+                "Identifying Necessary Transparency Moments In Agentic AI "
+                "(Part 1) — Smashing Magazine"
+            )
             epub_file = work_dir / f"{title}.epub"
             epub_file.write_bytes(b"fake epub data")
 
@@ -127,5 +131,22 @@ class TestKindleSender:
                 '(Part 1) - Smashing Magazine.epub"'
             ) in content_disp
             assert msg["Subject"] == title
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+    def test_build_message_falls_back_to_epub_stem_when_title_sanitizes_empty(self) -> None:
+        """Attachment filename should fall back when the title sanitizes to empty."""
+        work_dir = Path(tempfile.mkdtemp(prefix="instakindle_test_"))
+        try:
+            epub_file = work_dir / "fallback.epub"
+            epub_file.write_bytes(b"fake epub data")
+
+            sender = self._make_sender()
+            msg = sender._build_message(epub_file, "...")
+
+            attachment = msg.get_payload()[1]
+            content_disp = attachment["Content-Disposition"]
+            assert 'filename="fallback.epub"' in content_disp
+            assert msg["Subject"] == "..."
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)

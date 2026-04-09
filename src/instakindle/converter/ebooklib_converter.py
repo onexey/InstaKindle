@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import unicodedata
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from bs4 import BeautifulSoup
 from ebooklib import epub
@@ -186,18 +186,21 @@ def _sanitize_filename(name: str) -> str:
     # Characters unsafe for filenames or MIME Content-Disposition headers.
     # ASCII apostrophes are also replaced because they have caused Kindle
     # delivery failures in generated email attachment headers.
-    _unsafe = "<>:\"/\\|?*'"
+    _unsafe = set("<>:\"/\\|?*'")
     translated = name.translate(
         str.maketrans(
-            {
-                "‐": "-",
-                "‑": "-",
-                "‒": "-",
-                "–": "-",
-                "—": "-",
-                "―": "-",
-                "−": "-",
-            }
+            cast(
+                "dict[int, str | int | None]",
+                {
+                    0x2010: "-",
+                    0x2011: "-",
+                    0x2012: "-",
+                    0x2013: "-",
+                    0x2014: "-",
+                    0x2015: "-",
+                    0x2212: "-",
+                },
+            )
         )
     )
     normalized = unicodedata.normalize("NFKD", translated)
