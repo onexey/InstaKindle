@@ -88,7 +88,7 @@ class TestKindleSender:
             shutil.rmtree(work_dir, ignore_errors=True)
 
     def test_build_message_quotes_filename(self) -> None:
-        """Content-Disposition filename should be properly quoted/encoded.
+        """Content-Disposition filename should be safely quoted after sanitization.
 
         Regression test: titles with apostrophes produced malformed
         Content-Disposition headers that caused silent delivery failures.
@@ -103,9 +103,29 @@ class TestKindleSender:
 
             attachment = msg.get_payload()[1]
             content_disp = attachment["Content-Disposition"]
-            quoted_filename = 'filename="Why I\'m Not Worried.epub"'
-            # The filename must be serialized as a quoted string or an
-            # RFC 2231 encoded parameter, not as a bare unquoted value.
-            assert quoted_filename in content_disp or "filename*=" in content_disp
+            assert 'filename="Why I_m Not Worried.epub"' in content_disp
+            assert "filename*=" not in content_disp
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+    def test_build_message_uses_ascii_attachment_filename_for_em_dash_title(self) -> None:
+        """Attachment filename should avoid RFC2231 encoding for Unicode punctuation."""
+        work_dir = Path(tempfile.mkdtemp(prefix="instakindle_test_"))
+        try:
+            title = "Identifying Necessary Transparency Moments In Agentic AI (Part 1) — Smashing Magazine"
+            epub_file = work_dir / f"{title}.epub"
+            epub_file.write_bytes(b"fake epub data")
+
+            sender = self._make_sender()
+            msg = sender._build_message(epub_file, title)
+
+            attachment = msg.get_payload()[1]
+            content_disp = attachment["Content-Disposition"]
+            assert "filename*=" not in content_disp
+            assert (
+                'filename="Identifying Necessary Transparency Moments In Agentic AI '
+                '(Part 1) - Smashing Magazine.epub"'
+            ) in content_disp
+            assert msg["Subject"] == title
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)

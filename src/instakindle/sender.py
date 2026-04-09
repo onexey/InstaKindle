@@ -11,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TYPE_CHECKING
 
+from instakindle.converter.ebooklib_converter import _sanitize_filename
 from instakindle.retry import retry
 
 if TYPE_CHECKING:
@@ -102,10 +103,11 @@ class KindleSender:
             attachment.set_payload(f.read())
 
         encoders.encode_base64(attachment)
+        attachment_stem = _sanitize_filename(title) or _sanitize_filename(epub_path.stem) or "document"
         attachment.add_header(
             "Content-Disposition",
             "attachment",
-            filename=epub_path.name,
+            filename=f"{attachment_stem}{epub_path.suffix}",
         )
         msg.attach(attachment)
 
