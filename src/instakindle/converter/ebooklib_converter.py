@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+import unicodedata
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from bs4 import BeautifulSoup
 from ebooklib import epub
@@ -183,11 +184,32 @@ class EbooklibConverter(Converter):
 def _sanitize_filename(name: str) -> str:
     """Sanitize a string for use as a filename."""
     # Characters unsafe for filenames or MIME Content-Disposition headers.
-    # Includes standard filesystem-unsafe chars, ASCII apostrophe, and
-    # Unicode curly/smart quotes (U+2018..U+201F) that break email delivery.
-    _unsafe = "<>:\"/\\|?*'\u2018\u2019\u201a\u201b\u201c\u201d\u201e\u201f"
-    name = name.translate(dict.fromkeys(map(ord, _unsafe), "_"))
-    return name[:200].strip().rstrip(".")
+    # ASCII apostrophes are also replaced because they have caused Kindle
+    # delivery failures in generated email attachment headers.
+    _unsafe = set("<>:\"/\\|?*'")
+    translated = name.translate(
+        str.maketrans(
+            cast(
+                "dict[int, str | int | None]",
+                {
+                    0x2010: "-",
+                    0x2011: "-",
+                    0x2012: "-",
+                    0x2013: "-",
+                    0x2014: "-",
+                    0x2015: "-",
+                    0x2212: "-",
+                },
+            )
+        )
+    )
+    normalized = unicodedata.normalize("NFKD", translated)
+    sanitized = "".join(
+        "_" if ord(char) < 32 or ord(char) > 127 or char in _unsafe else char
+        for char in normalized
+        if not unicodedata.combining(char)
+    )
+    return sanitized[:200].strip().rstrip(".")
 
 
 def _guess_media_type(path: Path) -> str:
