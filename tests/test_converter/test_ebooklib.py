@@ -6,6 +6,8 @@ import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import requests
+
 from instakindle.converter.ebooklib_converter import (
     EbooklibConverter,
     _guess_media_type,
@@ -90,8 +92,6 @@ class TestEbooklibConverter:
         self, mock_get: MagicMock, sample_article: Article
     ) -> None:
         """Broken or remote-only image references should not remain in the EPUB XHTML."""
-        import requests
-
         mock_get.side_effect = requests.ConnectionError("Network error")
 
         html = """
