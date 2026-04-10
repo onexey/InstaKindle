@@ -99,7 +99,13 @@ class TestEbooklibConverter:
         assert result.success
 
         with zipfile.ZipFile(result.epub_path, "r") as zf:
-            content = zf.read("EPUB/content.xhtml").decode("utf-8")
+            content_files = [
+                name
+                for name in zf.namelist()
+                if name.endswith(".xhtml") and not name.endswith("nav.xhtml")
+            ]
+            assert len(content_files) == 1
+            content = zf.read(content_files[0]).decode("utf-8")
 
         assert "<img" not in content
         assert "/media/cover.png" not in content
