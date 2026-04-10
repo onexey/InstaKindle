@@ -85,13 +85,22 @@ class TestEbooklibConverter:
         result = converter.convert(article, "<p>Content</p>")
         assert result.success
 
-    def test_convert_removes_non_embeddable_images_from_epub(self, sample_article: Article) -> None:
+    @patch("instakindle.converter.base.requests.get")
+    def test_convert_removes_non_embeddable_images_from_epub(
+        self, mock_get: MagicMock, sample_article: Article
+    ) -> None:
         """Broken or remote-only image references should not remain in the EPUB XHTML."""
+        import requests
+
+        mock_get.side_effect = requests.ConnectionError("Network error")
+
         html = """
         <p>Relative image</p>
         <img src="/media/cover.png" alt="relative">
         <p>Missing image source</p>
         <img alt="missing">
+        <p>Broken remote image</p>
+        <img src="https://example.com/broken.png" alt="broken remote">
         """
         converter = EbooklibConverter()
         result = converter.convert(sample_article, html)
@@ -109,6 +118,7 @@ class TestEbooklibConverter:
 
         assert "<img" not in content
         assert "/media/cover.png" not in content
+        assert "https://example.com/broken.png" not in content
 
 
 class TestGuessMediaType:
