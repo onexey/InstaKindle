@@ -85,6 +85,25 @@ class TestEbooklibConverter:
         result = converter.convert(article, "<p>Content</p>")
         assert result.success
 
+    def test_convert_removes_non_embeddable_images_from_epub(self, sample_article: Article) -> None:
+        """Broken or remote-only image references should not remain in the EPUB XHTML."""
+        html = """
+        <p>Relative image</p>
+        <img src="/media/cover.png" alt="relative">
+        <p>Missing image source</p>
+        <img alt="missing">
+        """
+        converter = EbooklibConverter()
+        result = converter.convert(sample_article, html)
+
+        assert result.success
+
+        with zipfile.ZipFile(result.epub_path, "r") as zf:
+            content = zf.read("EPUB/content.xhtml").decode("utf-8")
+
+        assert "<img" not in content
+        assert "/media/cover.png" not in content
+
 
 class TestGuessMediaType:
     """Tests for _guess_media_type helper."""

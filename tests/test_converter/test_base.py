@@ -99,12 +99,24 @@ class TestDownloadImages:
             shutil.rmtree(work_dir, ignore_errors=True)
 
     def test_relative_images_skipped(self) -> None:
-        """Relative image URLs should be skipped."""
+        """Relative image URLs should be removed when they cannot be embedded."""
         work_dir = _make_tmp_dir()
         try:
             html = '<p><img src="local/image.png"></p>'
-            _updated_html, image_map = Converter.download_images(html, work_dir)
+            updated_html, image_map = Converter.download_images(html, work_dir)
             assert len(image_map) == 0
+            assert "<img" not in updated_html
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+    def test_images_without_src_removed(self) -> None:
+        """Images without a usable source should be removed from output HTML."""
+        work_dir = _make_tmp_dir()
+        try:
+            html = '<p><img alt="decorative"></p>'
+            updated_html, image_map = Converter.download_images(html, work_dir)
+            assert len(image_map) == 0
+            assert "<img" not in updated_html
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
 
@@ -118,7 +130,8 @@ class TestDownloadImages:
             mock_get.side_effect = requests.ConnectionError("Network error")
 
             html = '<p><img src="https://example.com/broken.png"></p>'
-            _updated_html, image_map = Converter.download_images(html, work_dir)
+            updated_html, image_map = Converter.download_images(html, work_dir)
             assert len(image_map) == 0
+            assert "<img" not in updated_html
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
