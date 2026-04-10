@@ -65,6 +65,8 @@ class Converter(ABC):
         for idx, img in enumerate(soup.find_all("img")):
             src = img.get("src", "")
             if not src or not src.startswith(("http://", "https://")):
+                logger.debug("Removing non-embeddable image with src=%r", src)
+                img.decompose()
                 continue
 
             try:
@@ -82,6 +84,7 @@ class Converter(ABC):
                 logger.debug("Downloaded image: %s -> %s", src, local_path)
             except requests.RequestException:
                 logger.warning("Failed to download image: %s", src)
+                img.decompose()
 
         return str(soup), image_map
 

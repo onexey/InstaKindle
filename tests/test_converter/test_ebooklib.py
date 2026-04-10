@@ -6,6 +6,8 @@ import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import requests
+
 from instakindle.converter.ebooklib_converter import (
     EbooklibConverter,
     _guess_media_type,
@@ -84,6 +86,39 @@ class TestEbooklibConverter:
         converter = EbooklibConverter()
         result = converter.convert(article, "<p>Content</p>")
         assert result.success
+
+    @patch("instakindle.converter.base.requests.get")
+    def test_convert_removes_non_embeddable_images_from_epub(
+        self, mock_get: MagicMock, sample_article: Article
+    ) -> None:
+        """Broken or remote-only image references should not remain in the EPUB XHTML."""
+        mock_get.side_effect = requests.ConnectionError("Network error")
+
+        html = """
+        <p>Relative image</p>
+        <img src="/media/cover.png" alt="relative">
+        <p>Missing image source</p>
+        <img alt="missing">
+        <p>Broken remote image</p>
+        <img src="https://example.com/broken.png" alt="broken remote">
+        """
+        converter = EbooklibConverter()
+        result = converter.convert(sample_article, html)
+
+        assert result.success
+
+        with zipfile.ZipFile(result.epub_path, "r") as zf:
+            content_files = [
+                name
+                for name in zf.namelist()
+                if name.endswith(".xhtml") and not name.endswith("nav.xhtml")
+            ]
+            assert len(content_files) == 1
+            content = zf.read(content_files[0]).decode("utf-8")
+
+        assert "<img" not in content
+        assert "/media/cover.png" not in content
+        assert "https://example.com/broken.png" not in content
 
 
 class TestGuessMediaType:
