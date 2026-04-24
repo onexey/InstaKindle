@@ -7,7 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 import requests
 
-from instakindle.instapaper import Article, InstapaperClient, InstapaperError
+from instakindle.instapaper import (
+    Article,
+    InstapaperArticleUnavailableError,
+    InstapaperClient,
+    InstapaperError,
+)
 
 
 class TestArticle:
@@ -206,6 +211,28 @@ class TestInstapaperClient:
 
         html = client.get_article_html(12345)
         assert "<p>Article content</p>" in html
+
+    def test_get_article_html_raises_article_unavailable_for_400(self) -> None:
+        """A 400 from get_text should be treated as a permanent article failure."""
+        mock_session = MagicMock(spec=requests.Session)
+
+        auth_response = MagicMock()
+        auth_response.text = "oauth_token=tok&oauth_token_secret=sec"
+        auth_response.raise_for_status = MagicMock()
+        mock_session.post.return_value = auth_response
+
+        client = self._make_client(session=mock_session)
+        client.authenticate()
+
+        response = MagicMock()
+        response.status_code = 400
+        http_error = requests.HTTPError("400 Client Error", response=response)
+        html_response = MagicMock()
+        html_response.raise_for_status.side_effect = http_error
+        mock_session.post.return_value = html_response
+
+        with pytest.raises(InstapaperArticleUnavailableError, match="could not provide HTML"):
+            client.get_article_html(12345)
 
     def test_api_request_not_authenticated(self) -> None:
         """API requests should fail if not authenticated."""

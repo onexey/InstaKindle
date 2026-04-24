@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from instakindle.converter.ebooklib_converter import EbooklibConverter
-from instakindle.instapaper import Article, InstapaperClient, InstapaperError
+from instakindle.instapaper import (
+    Article,
+    InstapaperArticleUnavailableError,
+    InstapaperClient,
+    InstapaperError,
+)
 from instakindle.sender import KindleSender, SenderError
 
 if TYPE_CHECKING:
@@ -20,10 +25,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SENT_FOLDER = "InstaKindle"
+FAILED_FOLDER = "InstaKindle Failed"
 MAX_CONSECUTIVE_FAILURES = 10
 _MAX_BACKOFF_SECONDS = 3600  # 1 hour
 _MAX_BACKOFF_EXPONENT = 4
 HEALTHCHECK_FILE = Path("/tmp/instakindle_last_success")
+
+_PROCESS_SUCCESS = "success"
+_PROCESS_FAILED = "failed"
+_PROCESS_QUARANTINED = "quarantined"
 
 
 class PipelineIterationError(Exception):
@@ -139,24 +149,38 @@ class Pipeline:
 
         logger.info("Processing %d articles...", len(articles))
         success_count = 0
+        quarantined_count = 0
+        failed_count = 0
 
         for article in articles:
-            if self._process_article(article):
+            result = self._process_article(article)
+            if result == _PROCESS_SUCCESS:
                 success_count += 1
+            elif result == _PROCESS_QUARANTINED:
+                quarantined_count += 1
+            else:
+                failed_count += 1
 
         logger.info("Processed %d/%d articles successfully", success_count, len(articles))
 
-        if success_count == 0:
+        if quarantined_count:
+            logger.warning(
+                "Quarantined %d article(s) with non-retriable fetch failures",
+                quarantined_count,
+            )
+
+        if success_count == 0 and failed_count > 0:
             msg = f"All {len(articles)} articles failed to process"
             raise PipelineIterationError(msg)
 
         return success_count
 
-    def _process_article(self, article: Article) -> bool:
+    def _process_article(self, article: Article) -> str:
         """Process a single article through the full pipeline.
 
         Returns:
-            True if the article was successfully processed.
+            Outcome string describing whether the article was processed,
+            quarantined, or failed.
         """
         logger.info("Processing: '%s' (%s)", article.title, article.url)
 
@@ -165,14 +189,17 @@ class Pipeline:
             article_html = self._client.get_article_html(article.bookmark_id)
 
             if not article_html:
-                logger.warning("Empty HTML for article '%s', skipping", article.title)
-                return False
+                logger.warning("Empty HTML for article '%s', quarantining", article.title)
+                return self._quarantine_article(
+                    article,
+                    reason="Instapaper returned empty HTML",
+                )
 
             # Step 2: Convert to EPUB
             result = self._converter.convert(article, article_html)
             if not result.success:
                 logger.error("Conversion failed for '%s': %s", article.title, result.error)
-                return False
+                return _PROCESS_FAILED
 
             try:
                 # Step 3: Send to Kindle
@@ -183,18 +210,46 @@ class Pipeline:
                 self._client.move_bookmark(article.bookmark_id, folder_id)
 
                 logger.info("Successfully processed: '%s'", article.title)
-                return True
+                return _PROCESS_SUCCESS
 
             finally:
                 # Clean up temporary files
                 self._cleanup(result.epub_path.parent)
 
+        except InstapaperArticleUnavailableError as exc:
+            logger.warning(
+                "Non-retriable Instapaper fetch failure for '%s': %s",
+                article.title,
+                exc,
+            )
+            return self._quarantine_article(article, reason=str(exc))
         except (InstapaperError, SenderError):
             logger.exception("Failed to process article '%s'", article.title)
-            return False
+            return _PROCESS_FAILED
         except Exception:
             logger.exception("Unexpected error processing article '%s'", article.title)
-            return False
+            return _PROCESS_FAILED
+
+    def _quarantine_article(self, article: Article, *, reason: str) -> str:
+        """Move a permanently bad bookmark out of unread so it stops blocking polling."""
+        try:
+            folder_id = self._client.get_or_create_folder(FAILED_FOLDER)
+            self._client.move_bookmark(article.bookmark_id, folder_id)
+        except InstapaperError:
+            logger.exception(
+                "Failed to quarantine article '%s' after non-retriable error: %s",
+                article.title,
+                reason,
+            )
+            return _PROCESS_FAILED
+
+        logger.warning(
+            "Moved article '%s' to '%s': %s",
+            article.title,
+            FAILED_FOLDER,
+            reason,
+        )
+        return _PROCESS_QUARANTINED
 
     @staticmethod
     def _cleanup(directory: Path) -> None:

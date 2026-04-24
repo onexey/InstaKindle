@@ -47,6 +47,10 @@ class InstapaperError(Exception):
     """Raised when an Instapaper API call fails."""
 
 
+class InstapaperArticleUnavailableError(InstapaperError):
+    """Raised when Instapaper cannot provide article text for a bookmark."""
+
+
 class InstapaperClient:
     """Client for the Instapaper Full API (OAuth 1.0a with xAuth)."""
 
@@ -225,6 +229,14 @@ class InstapaperClient:
             )
             response.raise_for_status()
             return response.text
+        except requests.HTTPError as e:
+            status_code = e.response.status_code if e.response is not None else None
+            if status_code in {400, 404}:
+                raise InstapaperArticleUnavailableError(
+                    f"Instapaper could not provide HTML for bookmark {bookmark_id} "
+                    f"(status={status_code})"
+                ) from e
+            raise InstapaperError(f"Failed to fetch HTML for bookmark {bookmark_id}: {e}") from e
         except requests.RequestException as e:
             raise InstapaperError(f"Failed to fetch HTML for bookmark {bookmark_id}: {e}") from e
 

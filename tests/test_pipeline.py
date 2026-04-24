@@ -9,9 +9,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from instakindle.converter.base import ConversionResult
-from instakindle.instapaper import Article, InstapaperError
+from instakindle.instapaper import (
+    Article,
+    InstapaperArticleUnavailableError,
+    InstapaperError,
+)
 from instakindle.pipeline import (
     _MAX_BACKOFF_SECONDS,
+    FAILED_FOLDER,
     MAX_CONSECUTIVE_FAILURES,
     SENT_FOLDER,
     Pipeline,
@@ -129,19 +134,25 @@ class TestPipeline:
         sample_config: Config,
         sample_article: Article,
     ) -> None:
-        """run_once should raise when all articles have empty HTML."""
+        """run_once should quarantine articles with empty HTML."""
         mock_client = mock_client_cls.return_value
         mock_client.get_bookmarks.return_value = [sample_article]
         mock_client.get_article_html.return_value = ""
+        mock_client.get_or_create_folder.return_value = "failed-folder"
 
         mock_converter = mock_converter_cls.return_value
 
         pipeline = Pipeline(sample_config)
 
-        with pytest.raises(PipelineIterationError):
-            pipeline.run_once()
+        count = pipeline.run_once()
 
+        assert count == 0
         mock_converter.convert.assert_not_called()
+        mock_client.get_or_create_folder.assert_called_once_with(FAILED_FOLDER)
+        mock_client.move_bookmark.assert_called_once_with(
+            sample_article.bookmark_id,
+            "failed-folder",
+        )
 
     @patch("instakindle.pipeline.KindleSender")
     @patch("instakindle.pipeline.EbooklibConverter")
@@ -209,6 +220,35 @@ class TestPipeline:
         count = pipeline.run_once()
 
         assert count == 1  # Only article2 succeeded
+
+    @patch("instakindle.pipeline.KindleSender")
+    @patch("instakindle.pipeline.EbooklibConverter")
+    @patch("instakindle.pipeline.InstapaperClient")
+    def test_run_once_quarantines_permanent_fetch_errors(
+        self,
+        mock_client_cls: MagicMock,
+        mock_converter_cls: MagicMock,
+        mock_sender_cls: MagicMock,
+        sample_config: Config,
+        sample_article: Article,
+    ) -> None:
+        """Non-retriable fetch failures should be quarantined without failing the run."""
+        mock_client = mock_client_cls.return_value
+        mock_client.get_bookmarks.return_value = [sample_article]
+        mock_client.get_article_html.side_effect = InstapaperArticleUnavailableError(
+            "Instapaper could not provide HTML for bookmark 12345 (status=400)"
+        )
+        mock_client.get_or_create_folder.return_value = "failed-folder"
+
+        pipeline = Pipeline(sample_config)
+        count = pipeline.run_once()
+
+        assert count == 0
+        mock_client.get_or_create_folder.assert_called_once_with(FAILED_FOLDER)
+        mock_client.move_bookmark.assert_called_once_with(
+            sample_article.bookmark_id,
+            "failed-folder",
+        )
 
 
 class TestPipelineCleanup:
@@ -457,6 +497,44 @@ class TestRunForever:
             pipeline.run_forever()
 
         assert mock_client.get_bookmarks.call_count == MAX_CONSECUTIVE_FAILURES
+
+    @patch("instakindle.pipeline.time.sleep")
+    @patch("instakindle.pipeline.KindleSender")
+    @patch("instakindle.pipeline.EbooklibConverter")
+    @patch("instakindle.pipeline.InstapaperClient")
+    def test_quarantined_articles_do_not_increment_failure_counter(
+        self,
+        mock_client_cls: MagicMock,
+        mock_converter_cls: MagicMock,
+        mock_sender_cls: MagicMock,
+        mock_sleep: MagicMock,
+        sample_config: Config,
+        sample_article: Article,
+    ) -> None:
+        """A quarantined article should count as handled, not as a failed iteration."""
+        call_count = 0
+        mock_client = mock_client_cls.return_value
+        mock_client.get_or_create_folder.return_value = "failed-folder"
+
+        def fake_get_bookmarks() -> list[Article]:
+            nonlocal call_count
+            call_count += 1
+            if call_count > 1:
+                raise SystemExit(0)
+            return [sample_article]
+
+        mock_client.get_bookmarks.side_effect = fake_get_bookmarks
+        mock_client.get_article_html.side_effect = InstapaperArticleUnavailableError(
+            "Instapaper could not provide HTML for bookmark 12345 (status=400)"
+        )
+
+        pipeline = Pipeline(sample_config)
+
+        with patch("instakindle.pipeline._write_healthcheck"), pytest.raises(SystemExit):
+            pipeline.run_forever()
+
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [sample_config.poll_interval]
 
 
 class TestWriteHealthcheck:

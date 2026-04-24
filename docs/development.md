@@ -128,7 +128,8 @@ CLI (cli.py)
 
 - **EbookLib converter**: Articles are converted to EPUB using [ebooklib](https://github.com/aerkalov/ebooklib), a pure-Python library with zero system dependencies.
 - **Frozen dataclass for config**: Configuration is immutable once loaded, preventing accidental mutation.
-- **Graceful degradation**: Individual article failures don't stop the pipeline. Each article is processed independently, and errors are logged so the loop continues with the next article.
+- **Graceful degradation**: Individual article failures don't stop the pipeline. Tagging failures are logged as warnings, and errors are isolated so the loop continues with the next article.
+- **Failed-article quarantine**: Bookmarks that Instapaper consistently rejects from `/bookmarks/get_text` with permanent client errors are moved to the `InstaKindle Failed` folder so one bad article cannot stall future polling cycles.
 - **Temp directory cleanup**: Conversion artifacts are cleaned up after each article is processed.
 - **Retry on transient failures**: All network-bound operations use retry with exponential backoff (see below).
 
